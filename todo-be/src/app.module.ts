@@ -3,6 +3,7 @@ import { AppService } from './app.service';
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TodosModule } from './todos/todos.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         uri: config.get<string>('MONGO_URI'),
       }),
     }),
+    TodosModule,
   ],
   controllers: [AppController],
   providers: [AppService],
