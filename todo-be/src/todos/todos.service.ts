@@ -14,9 +14,12 @@ export class TodosService {
     return await this.todoModel.create(createTodoDto);
   }
 
+  async findAll(): Promise<Todo[]> {
+    return this.todoModel.find().exec();
+  }
+
   async search(query: SearchTodoDto) {
     const {
-      search,
       dueDateStart,
       dueDateEnd,
       status,
@@ -27,10 +30,6 @@ export class TodosService {
     } = query;
 
     const filter: Record<string, any> = {};
-
-    if (search) {
-      filter.$text = { $search: search };
-    }
 
     if (status) {
       filter.status = status;
@@ -73,10 +72,6 @@ export class TodosService {
       limit,
       results,
     };
-  }
-
-  async findAll(): Promise<Todo[]> {
-    return this.todoModel.find().exec();
   }
 
   async findOne(id: string): Promise<Todo | null> {

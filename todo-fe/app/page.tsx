@@ -3,13 +3,7 @@ import { useState } from "react"
 import { Input, InputNumber, message, Modal, Radio, Select, Table } from "antd"
 import { Button, Form, DatePicker } from "antd"
 import { EditOutlined, SearchOutlined } from "@ant-design/icons"
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  QueryClient,
-  QueryClientProvider,
-} from "@tanstack/react-query"
+import { useQuery, useMutation } from "@tanstack/react-query"
 import { todoApi, CreateFormValue } from "./apis"
 
 const { RangePicker } = DatePicker
@@ -113,7 +107,11 @@ export default function Home() {
         layout={"inline"}
         className="gap-3"
         form={searchForm}
-        initialValues={{ layout: "horizontal", sortBy: "dueDate" }}
+        initialValues={{
+          layout: "horizontal",
+          sortBy: "dueDate",
+          sortOrder: "DESC",
+        }}
         onFinish={onFinish}
       >
         <Form.Item label="Status" name="status">
@@ -141,10 +139,10 @@ export default function Home() {
             ]}
           />
         </Form.Item>
-        <Form.Item label="due day" name="dueDateRange">
+        <Form.Item label="Due day" name="dueDateRange">
           <RangePicker allowClear />
         </Form.Item>
-        <Form.Item label="dependency status" name="dependencyStatus">
+        <Form.Item label="Dependency" name="dependencyStatus">
           <Select
             allowClear
             style={{ width: 150 }}
@@ -157,7 +155,6 @@ export default function Home() {
         </Form.Item>
         <Form.Item label="Sort by" name="sortBy">
           <Select
-            allowClear
             style={{ width: 120 }}
             placeholder="Sort by"
             options={[
@@ -165,6 +162,16 @@ export default function Home() {
               { value: "priority", label: "Priority" },
               { value: "status", label: "Status" },
               { value: "name", label: "Name" },
+            ]}
+          />
+        </Form.Item>
+        <Form.Item label="Sort Order" name="sortOrder">
+          <Select
+            style={{ width: 120 }}
+            placeholder="Sort Order"
+            options={[
+              { value: "DESC", label: "Desc" },
+              { value: "ASC", label: "Asc" },
             ]}
           />
         </Form.Item>
