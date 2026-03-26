@@ -10,8 +10,11 @@ import {
   Select,
   Table,
   Alert,
+  Button,
+  Form,
+  DatePicker,
 } from "antd"
-import { Button, Form, DatePicker } from "antd"
+import { useQueryClient } from "@tanstack/react-query"
 import { EditOutlined, SearchOutlined } from "@ant-design/icons"
 import { useQuery, useMutation } from "@tanstack/react-query"
 import { todoApi, CreateFormValue, SearchFormValue } from "./apis"
@@ -21,10 +24,10 @@ import {
   priorityOptions,
   recurrenceOptions,
 } from "./data/options"
-
 const { RangePicker } = DatePicker
 
 export default function Home() {
+  const queryClient = useQueryClient()
   const [messageApi, contextHolder] = message.useMessage()
   const [searchForm] = Form.useForm()
   const [searchFormValue, setSearchFormValue] = useState<SearchFormValue>({
@@ -33,10 +36,9 @@ export default function Home() {
     page: 1,
     limit: 10,
   })
-  const [refreshFlag, setRefreshFlag] = useState(1)
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["todos", searchFormValue, refreshFlag],
+    queryKey: ["todos", searchFormValue],
     queryFn: () =>
       todoApi.search({
         ...searchFormValue,
@@ -68,11 +70,11 @@ export default function Home() {
         setIsModalOpen(false)
         createForm.resetFields()
 
-        setSearchFormValue(prev => ({
-          ...prev,
-          page: 1,
-        }))
-        setRefreshFlag(prev => prev + 1)
+        if (searchFormValue.page === 1) {
+          queryClient.invalidateQueries({ queryKey: ["todos"] })
+        } else {
+          setSearchFormValue(prev => ({ ...prev, page: 1 }))
+        }
       }
     },
     onError: error => {
@@ -82,7 +84,6 @@ export default function Home() {
 
   const onFinishCreate = (values: CreateFormValue) => {
     createTodoMutation.mutate(values)
-    // setIsModalOpen(false)
   }
 
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -192,7 +193,7 @@ export default function Home() {
       <Table
         loading={isLoading}
         dataSource={data?.data?.results || []}
-        rowKey={"_id"}
+        rowKey={(record: { _id: string }) => record._id}
         columns={columns}
         className="mt-3"
         pagination={{
