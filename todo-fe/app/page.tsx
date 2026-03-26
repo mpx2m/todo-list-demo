@@ -38,18 +38,17 @@ export default function Home() {
     limit: 10,
   })
 
+  const buildSearchParams = (value: SearchFormValue) => ({
+    ...value,
+    dueDateStart: value.dueDateRange?.[0]?.startOf("day").toISOString(),
+    dueDateEnd: value.dueDateRange?.[1]?.endOf("day").toISOString(),
+  })
+
+  const params = buildSearchParams(searchFormValue)
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ["todos", searchFormValue],
-    queryFn: () =>
-      todoApi.search({
-        ...searchFormValue,
-        dueDateStart: searchFormValue.dueDateRange
-          ? searchFormValue.dueDateRange[0].startOf("day").toISOString()
-          : undefined,
-        dueDateEnd: searchFormValue.dueDateRange
-          ? searchFormValue.dueDateRange[1].endOf("day").toISOString()
-          : undefined,
-      }),
+    queryKey: ["todos", JSON.stringify(params)],
+    queryFn: () => todoApi.search(params),
   })
 
   const onFinish = (values: SearchFormValue) => {
@@ -204,11 +203,10 @@ export default function Home() {
           current: searchFormValue.page,
           pageSize: searchFormValue.limit,
           total: data?.data?.total || 0,
-          onChange: (page, pageSize) => {
+          onChange: page => {
             setSearchFormValue(prev => ({
               ...prev,
               page,
-              limit: pageSize,
             }))
           },
         }}

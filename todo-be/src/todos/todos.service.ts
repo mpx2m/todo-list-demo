@@ -59,6 +59,7 @@ export class TodosService {
     const skip = (page - 1) * limit;
     const sort: Record<string, 1 | -1> = {
       [sortBy]: sortOrder === SortOrder.ASC ? 1 : -1,
+      _id: -1,
     };
 
     const [total, results] = await Promise.all([
