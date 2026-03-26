@@ -196,6 +196,7 @@ export default function Home() {
         columns={columns}
         className="mt-3"
         pagination={{
+          showTotal: total => `Total ${total} items`,
           current: searchFormValue.page,
           pageSize: searchFormValue.limit,
           total: data?.data?.total || 0,

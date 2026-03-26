@@ -60,10 +60,23 @@ export const columns = [
     },
   },
   {
+    title: "Created At",
+    dataIndex: "createdAt",
+    key: "createdAt",
+    render: (createdAt: string) => {
+      return new Date(createdAt).toLocaleString()
+    },
+  },
+  {
     title: "Due date",
     dataIndex: "dueDate",
     key: "dueDate",
-    render: (dueDate: string) => new Date(dueDate).toLocaleString(),
+    render: (dueDate: string) => {
+      if (!dueDate) {
+        return null
+      }
+      return new Date(dueDate).toLocaleString()
+    },
   },
   {
     title: "Recurrence",
