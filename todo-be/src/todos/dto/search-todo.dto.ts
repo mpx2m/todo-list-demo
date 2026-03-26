@@ -1,4 +1,5 @@
-import { IsDateString, Min, IsOptional, IsEnum } from 'class-validator';
+import { IsDateString, IsOptional, IsEnum, Min, IsInt } from 'class-validator';
+import { Type } from 'class-transformer';
 import { TodoPriority, TodoStatus } from '../entities/todo.entity';
 
 export enum DependencyStatus {
@@ -39,19 +40,19 @@ export class SearchTodoDto {
   @IsEnum(DependencyStatus)
   dependencyStatus?: DependencyStatus;
 
-  @IsOptional()
   @IsEnum(SortBy)
   sortBy: SortBy = SortBy.DUE_DATE;
 
-  @IsOptional()
   @IsEnum(SortOrder)
   sortOrder: SortOrder = SortOrder.DESC;
 
-  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
   @Min(1)
   page: number = 1;
 
-  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
   @Min(10)
   limit: number = 10;
 }

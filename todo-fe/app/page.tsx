@@ -1,10 +1,21 @@
 "use client"
+
 import { useState } from "react"
-import { Input, InputNumber, message, Modal, Radio, Select, Table } from "antd"
+import {
+  Input,
+  InputNumber,
+  message,
+  Modal,
+  Radio,
+  Select,
+  Table,
+  Alert,
+} from "antd"
 import { Button, Form, DatePicker } from "antd"
 import { EditOutlined, SearchOutlined } from "@ant-design/icons"
 import { useQuery, useMutation } from "@tanstack/react-query"
 import { todoApi, CreateFormValue } from "./apis"
+import { columns } from "./data/columns"
 
 const { RangePicker } = DatePicker
 
@@ -27,39 +38,6 @@ export default function Home() {
     queryKey: ["todos"],
     queryFn: todoApi.search,
   })
-
-  const dataSource = [
-    {
-      key: "1",
-      name: "胡彦斌",
-      age: 32,
-      address: "西湖区湖底公园1号",
-    },
-    {
-      key: "2",
-      name: "胡彦祖",
-      age: 42,
-      address: "西湖区湖底公园1号",
-    },
-  ]
-
-  const columns = [
-    {
-      title: "姓名",
-      dataIndex: "name",
-      key: "name",
-    },
-    {
-      title: "年龄",
-      dataIndex: "age",
-      key: "age",
-    },
-    {
-      title: "住址",
-      dataIndex: "address",
-      key: "address",
-    },
-  ]
 
   const onFinish = (values: SearchFormValue) => {
     setSearchFormValue(values)
@@ -191,8 +169,21 @@ export default function Home() {
           </Button>
         </Form.Item>
       </Form>
-
-      <Table dataSource={dataSource} columns={columns} className="mt-3" />
+      {error && (
+        <section className="mt-3">
+          <Alert
+            type="error"
+            title={error.message || "Failed to fetch todos"}
+          />
+        </section>
+      )}
+      <Table
+        loading={isLoading}
+        dataSource={data?.data?.results || []}
+        rowKey={"_id"}
+        columns={columns}
+        className="mt-3"
+      />
       <Modal
         confirmLoading={createTodoMutation.isPending}
         centered

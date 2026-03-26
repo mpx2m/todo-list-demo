@@ -24,9 +24,10 @@ export class TodosService {
       dueDateEnd,
       status,
       priority,
-      sortOrder = SortOrder.DESC,
-      page = 1,
-      limit = 10,
+      sortBy,
+      sortOrder,
+      page,
+      limit,
     } = query;
 
     const filter: Record<string, any> = {};
@@ -56,9 +57,8 @@ export class TodosService {
     }
 
     const skip = (page - 1) * limit;
-
     const sort: Record<string, 1 | -1> = {
-      createdAt: sortOrder === SortOrder.ASC ? 1 : -1,
+      [sortBy]: sortOrder === SortOrder.ASC ? 1 : -1,
     };
 
     const [total, results] = await Promise.all([
