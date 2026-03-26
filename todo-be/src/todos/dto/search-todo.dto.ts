@@ -2,8 +2,8 @@ import { IsDateString, Min, IsOptional, IsEnum } from 'class-validator';
 import { TodoPriority, TodoStatus } from '../entities/todo.entity';
 
 export enum SortOrder {
-  ASC = 'Asc',
-  DESC = 'Desc',
+  ASC = 'ASC',
+  DESC = 'DESC',
 }
 
 export class SearchTodoDto {

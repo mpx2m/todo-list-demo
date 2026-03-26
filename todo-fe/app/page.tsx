@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { Input, InputNumber, Modal, Radio, Select, Table } from "antd"
+import { Input, InputNumber, message, Modal, Radio, Select, Table } from "antd"
 import { Button, Form, DatePicker } from "antd"
 import { EditOutlined, SearchOutlined } from "@ant-design/icons"
 import {
@@ -10,7 +10,7 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query"
-import { todoApi } from "./apis"
+import { todoApi, CreateFormValue } from "./apis"
 
 const { RangePicker } = DatePicker
 
@@ -22,17 +22,8 @@ interface SearchFormValue {
   sortBy: "dueDate" | "priority" | "status" | "name"
 }
 
-interface CreateFormValue {
-  name: string
-  description?: string
-  priority: string
-  status: string
-  dueDate?: Date
-  recurring: "NONE" | "DAILY" | "WEEKLY" | "MONTHLY" | "CUSTOM"
-  custom?: number
-}
-
 export default function Home() {
+  const [messageApi, contextHolder] = message.useMessage()
   const [searchForm] = Form.useForm()
   const [searchFormValue, setSearchFormValue] = useState<SearchFormValue>({
     sortBy: "dueDate",
@@ -42,7 +33,6 @@ export default function Home() {
     queryKey: ["todos"],
     queryFn: todoApi.search,
   })
-  console.log("debug: data", data, isLoading, error)
 
   const dataSource = [
     {
@@ -83,10 +73,23 @@ export default function Home() {
 
   // modal
   const [createForm] = Form.useForm()
+  const createTodoMutation = useMutation({
+    mutationFn: todoApi.createTodo,
+    onSuccess: res => {
+      if (res.success) {
+        messageApi.success("Todo created successfully!")
+        setIsModalOpen(false)
+        createForm.resetFields()
+      }
+    },
+    onError: error => {
+      messageApi.error(error.message || "Request failed")
+    },
+  })
 
   const onFinishCreate = (values: CreateFormValue) => {
-    console.log("debug:", values)
-    setIsModalOpen(false)
+    createTodoMutation.mutate(values)
+    // setIsModalOpen(false)
   }
 
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -105,6 +108,7 @@ export default function Home() {
 
   return (
     <main className="p-6">
+      {contextHolder}
       <Form
         layout={"inline"}
         className="gap-3"
@@ -183,13 +187,13 @@ export default function Home() {
 
       <Table dataSource={dataSource} columns={columns} className="mt-3" />
       <Modal
+        confirmLoading={createTodoMutation.isPending}
         centered
         destroyOnHidden
         title="Add Todo"
         open={isModalOpen}
         onOk={handleOk}
         onCancel={handleCancel}
-        afterClose={() => createForm.resetFields()}
       >
         <Form
           layout={"horizontal"}
@@ -206,7 +210,7 @@ export default function Home() {
         >
           <Form.Item
             label="Name"
-            name="Name"
+            name="name"
             rules={[{ required: true, message: "Please input your name" }]}
           >
             <Input allowClear placeholder="name" />
@@ -240,7 +244,7 @@ export default function Home() {
               ]}
             />
           </Form.Item>
-          <Form.Item name="DueDate" label="Due date">
+          <Form.Item name="dueDate" label="Due date">
             <DatePicker />
           </Form.Item>
           <Form.Item label="Recurring" name="recurring">
@@ -264,7 +268,7 @@ export default function Home() {
               getFieldValue("recurring") === "CUSTOM" ? (
                 <Form.Item
                   label="Custom"
-                  name="custom"
+                  name="customInterval"
                   rules={[
                     {
                       required: true,

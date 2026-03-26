@@ -1,20 +1,57 @@
+import {
+  IsDateString,
+  Min,
+  IsOptional,
+  IsEnum,
+  IsString,
+  IsNotEmpty,
+} from 'class-validator';
+
 export enum TodoStatus {
-  NOT_STARTED = 'Not Started',
-  IN_PROGRESS = 'In Progress',
-  COMPLETED = 'Completed',
-  ARCHIVED = 'Archived',
+  NOT_STARTED = 'NOT_STARTED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  ARCHIVED = 'ARCHIVED',
 }
 
 export enum TodoPriority {
-  LOW = 'Low',
-  MEDIUM = 'Medium',
-  HIGH = 'High',
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+}
+
+export enum Recurrence {
+  NONE = 'NONE',
+  DAILY = 'DAILY',
+  WEEKLY = 'WEEKLY',
+  MONTHLY = 'MONTHLY',
+  CUSTOM = 'CUSTOM',
 }
 
 export class Todo {
+  @IsString()
+  @IsNotEmpty()
   name: string;
-  description: string;
-  dueDate: Date;
-  status: TodoStatus;
-  priority: TodoPriority;
+
+  description?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dueDate?: Date;
+
+  @IsOptional()
+  @IsEnum(TodoStatus)
+  status?: TodoStatus;
+
+  @IsOptional()
+  @IsEnum(TodoPriority)
+  priority?: TodoPriority;
+
+  @IsOptional()
+  @IsEnum(Recurrence)
+  recurrence?: Recurrence;
+
+  @IsOptional()
+  @Min(1)
+  customInterval?: number;
 }
