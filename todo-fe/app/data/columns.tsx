@@ -1,5 +1,5 @@
 import { Tag } from "antd"
-import { priorityOptions, statusOptions } from "./options"
+import { priorityOptions, recurrenceOptions, statusOptions } from "./options"
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
@@ -67,7 +67,20 @@ export const columns = [
   },
   {
     title: "Recurrence",
-    dataIndex: "recurring",
-    key: "recurring",
+    dataIndex: "recurrence",
+    key: "recurrence",
+    render: (recurrence: string) => {
+      if (recurrence === "NONE") {
+        return null
+      }
+
+      return recurrenceOptions.find(option => option.value === recurrence)
+        ?.label
+    },
+  },
+  {
+    title: "Custom Interval day(s)",
+    dataIndex: "customInterval",
+    key: "customInterval",
   },
 ]

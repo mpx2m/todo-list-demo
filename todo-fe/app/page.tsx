@@ -16,7 +16,11 @@ import { EditOutlined, SearchOutlined } from "@ant-design/icons"
 import { useQuery, useMutation } from "@tanstack/react-query"
 import { todoApi, CreateFormValue, SearchFormValue } from "./apis"
 import { columns } from "./data/columns"
-import { statusOptions, priorityOptions } from "./data/options"
+import {
+  statusOptions,
+  priorityOptions,
+  recurrenceOptions,
+} from "./data/options"
 
 const { RangePicker } = DatePicker
 
@@ -222,7 +226,7 @@ export default function Home() {
             layout: "horizontal",
             status: "NOT_STARTED",
             priority: "LOW",
-            recurring: "NONE",
+            recurrence: "NONE",
           }}
           onFinish={onFinishCreate}
         >
@@ -250,32 +254,32 @@ export default function Home() {
           <Form.Item name="dueDate" label="Due date">
             <DatePicker />
           </Form.Item>
-          <Form.Item label="Recurring" name="recurring">
+          <Form.Item label="Recurrence" name="recurrence">
             <Radio.Group>
-              <Radio value="NONE">None</Radio>
-              <Radio value="DAILY">Daily</Radio>
-              <Radio value="WEEKLY">Weekly</Radio>
-              <Radio value="MONTHLY">Monthly</Radio>
-              <Radio value="CUSTOM">Custom</Radio>
+              {recurrenceOptions.map(option => (
+                <Radio key={option.value} value={option.value}>
+                  {option.label}
+                </Radio>
+              ))}
             </Radio.Group>
           </Form.Item>
 
           {/* Custom Interval */}
           <Form.Item
             shouldUpdate={(prevValues, currentValues) =>
-              prevValues.recurring !== currentValues.recurring
+              prevValues.recurrence !== currentValues.recurrence
             }
             noStyle
           >
             {({ getFieldValue }) =>
-              getFieldValue("recurring") === "CUSTOM" ? (
+              getFieldValue("recurrence") === "CUSTOM" ? (
                 <Form.Item
                   label="Custom"
                   name="customInterval"
                   rules={[
                     {
                       required: true,
-                      message: "Please input custom interval day(s)",
+                      message: "Please input custom interval",
                     },
                   ]}
                 >
@@ -284,7 +288,7 @@ export default function Home() {
                     max={999}
                     suffix="day(s)"
                     style={{ width: "100%" }}
-                    placeholder="interval day(s)"
+                    placeholder="Custom interval"
                   />
                 </Form.Item>
               ) : null

@@ -10,3 +10,11 @@ export const priorityOptions = [
   { value: "MEDIUM", label: "Medium" },
   { value: "HIGH", label: "High" },
 ]
+
+export const recurrenceOptions = [
+  { value: "NONE", label: "None" },
+  { value: "DAILY", label: "Daily" },
+  { value: "WEEKLY", label: "Weekly" },
+  { value: "MONTHLY", label: "Monthly" },
+  { value: "CUSTOM", label: "Custom" },
+]

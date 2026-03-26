@@ -8,7 +8,7 @@ export interface CreateFormValue {
   priority: string
   status: string
   dueDate?: Date
-  recurring: "NONE" | "DAILY" | "WEEKLY" | "MONTHLY" | "CUSTOM"
+  recurrence: "NONE" | "DAILY" | "WEEKLY" | "MONTHLY" | "CUSTOM"
   custom?: number
 }
 
