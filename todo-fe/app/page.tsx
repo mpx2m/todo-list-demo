@@ -1,65 +1,282 @@
-import Image from "next/image";
+"use client"
+import { useState } from "react"
+import { Input, InputNumber, Modal, Radio, Select, Table } from "antd"
+import { Button, Form, DatePicker } from "antd"
+import { EditOutlined, SearchOutlined } from "@ant-design/icons"
+
+const { RangePicker } = DatePicker
+
+interface SearchFormValue {
+  status?: string
+  priority?: string
+  dueDateRange?: [Date, Date]
+  dependencyStatus?: string
+  sortBy: "dueDate" | "priority" | "status" | "name"
+}
+
+interface CreateFormValue {
+  name: string
+  description?: string
+  priority: string
+  status: string
+  dueDate?: Date
+  recurring: "NONE" | "DAILY" | "WEEKLY" | "MONTHLY" | "CUSTOM"
+  custom?: number
+}
 
 export default function Home() {
+  const [searchForm] = Form.useForm()
+  const [searchFormValue, setSearchFormValue] = useState<SearchFormValue>({
+    sortBy: "dueDate",
+  })
+
+  const dataSource = [
+    {
+      key: "1",
+      name: "胡彦斌",
+      age: 32,
+      address: "西湖区湖底公园1号",
+    },
+    {
+      key: "2",
+      name: "胡彦祖",
+      age: 42,
+      address: "西湖区湖底公园1号",
+    },
+  ]
+
+  const columns = [
+    {
+      title: "姓名",
+      dataIndex: "name",
+      key: "name",
+    },
+    {
+      title: "年龄",
+      dataIndex: "age",
+      key: "age",
+    },
+    {
+      title: "住址",
+      dataIndex: "address",
+      key: "address",
+    },
+  ]
+
+  const onFinish = (values: SearchFormValue) => {
+    setSearchFormValue(values)
+  }
+
+  // modal
+  const [createForm] = Form.useForm()
+  const [createFormValue, setCreateFormValue] = useState<CreateFormValue>({
+    name: "",
+    description: "",
+    priority: "LOW",
+    status: "NOT_STARTED",
+    recurring: "NONE",
+  })
+
+  const onFinishCreate = (values: CreateFormValue) => {
+    setCreateFormValue(values)
+    setIsModalOpen(false)
+  }
+
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const showModal = () => {
+    setIsModalOpen(true)
+  }
+
+  const handleCancel = () => {
+    setIsModalOpen(false)
+  }
+
+  const handleOk = () => {
+    createForm.submit()
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="p-6">
+      <Form
+        layout={"inline"}
+        className="gap-3"
+        form={searchForm}
+        initialValues={{ layout: "horizontal", sortBy: "dueDate" }}
+        onFinish={onFinish}
+      >
+        <Form.Item label="Status" name="status">
+          <Select
+            allowClear
+            style={{ width: 150 }}
+            placeholder="Status"
+            options={[
+              { value: "NOT_STARTED", label: "Not Started" },
+              { value: "IN_PROGRESS", label: "In Progress" },
+              { value: "COMPLETED", label: "Completed" },
+              { value: "ARCHIVED", label: "Archived" },
+            ]}
+          />
+        </Form.Item>
+        <Form.Item label="Priority" name="priority">
+          <Select
+            allowClear
+            style={{ width: 150 }}
+            placeholder="Priority"
+            options={[
+              { value: "LOW", label: "Low" },
+              { value: "MEDIUM", label: "Medium" },
+              { value: "HIGH", label: "High" },
+            ]}
+          />
+        </Form.Item>
+        <Form.Item label="due day" name="dueDateRange">
+          <RangePicker allowClear />
+        </Form.Item>
+        <Form.Item label="dependency status" name="dependencyStatus">
+          <Select
+            allowClear
+            style={{ width: 150 }}
+            placeholder="Status"
+            options={[
+              { value: "BLOCKED", label: "Blocked" },
+              { value: "UNBLOCKED", label: "Unblocked" },
+            ]}
+          />
+        </Form.Item>
+        <Form.Item label="Sort by" name="sortBy">
+          <Select
+            allowClear
+            style={{ width: 120 }}
+            placeholder="Sort by"
+            options={[
+              { value: "dueDate", label: "Due date" },
+              { value: "priority", label: "Priority" },
+              { value: "status", label: "Status" },
+              { value: "name", label: "Name" },
+            ]}
+          />
+        </Form.Item>
+        <Form.Item>
+          <Button
+            color="primary"
+            variant="outlined"
+            htmlType="submit"
+            icon={<SearchOutlined />}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+            Search
+          </Button>
+        </Form.Item>
+        <Form.Item>
+          <Button type="primary" icon={<EditOutlined />} onClick={showModal}>
+            Add Todo
+          </Button>
+        </Form.Item>
+      </Form>
+
+      <Table dataSource={dataSource} columns={columns} className="mt-3" />
+      <Modal
+        centered
+        destroyOnHidden
+        title="Add Todo"
+        open={isModalOpen}
+        onOk={handleOk}
+        onCancel={handleCancel}
+      >
+        <Form
+          layout={"horizontal"}
+          labelCol={{ span: 5 }}
+          wrapperCol={{ span: 17 }}
+          form={createForm}
+          initialValues={{
+            layout: "horizontal",
+            status: "NOT_STARTED",
+            priority: "LOW",
+            recurring: "NONE",
+          }}
+          onFinish={onFinishCreate}
+        >
+          <Form.Item
+            label="Name"
+            name="Name"
+            rules={[{ required: true, message: "Please input your name" }]}
+          >
+            <Input allowClear placeholder="name" />
+          </Form.Item>
+          <Form.Item label="Description" name="description">
+            <Input.TextArea
+              allowClear
+              placeholder="Description"
+              rows={2}
+              style={{ resize: "none" }}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </Form.Item>
+          <Form.Item label="Status" name="status">
+            <Select
+              placeholder="Status"
+              options={[
+                { value: "NOT_STARTED", label: "Not Started" },
+                { value: "IN_PROGRESS", label: "In Progress" },
+                { value: "COMPLETED", label: "Completed" },
+                { value: "ARCHIVED", label: "Archived" },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item label="Priority" name="priority">
+            <Select
+              placeholder="Priority"
+              options={[
+                { value: "LOW", label: "Low" },
+                { value: "MEDIUM", label: "Medium" },
+                { value: "HIGH", label: "High" },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="DueDate" label="Due date">
+            <DatePicker />
+          </Form.Item>
+          <Form.Item label="Recurring" name="recurring">
+            <Radio.Group>
+              <Radio value="NONE">None</Radio>
+              <Radio value="DAILY">Daily</Radio>
+              <Radio value="WEEKLY">Weekly</Radio>
+              <Radio value="MONTHLY">Monthly</Radio>
+              <Radio value="CUSTOM">Custom</Radio>
+            </Radio.Group>
+          </Form.Item>
+
+          {/* Custom Interval */}
+          <Form.Item
+            shouldUpdate={(prevValues, currentValues) =>
+              prevValues.recurring !== currentValues.recurring
+            }
+            noStyle
           >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+            {({ getFieldValue }) =>
+              getFieldValue("recurring") === "CUSTOM" ? (
+                <Form.Item
+                  label="Custom"
+                  name="custom"
+                  rules={[
+                    {
+                      required: true,
+                      message: "Please input custom interval day(s)",
+                    },
+                  ]}
+                >
+                  <InputNumber
+                    min={1}
+                    max={999}
+                    suffix="day(s)"
+                    style={{ width: "100%" }}
+                    placeholder="interval day(s)"
+                  />
+                </Form.Item>
+              ) : null
+            }
+          </Form.Item>
+        </Form>
+      </Modal>
+    </main>
+  )
 }
