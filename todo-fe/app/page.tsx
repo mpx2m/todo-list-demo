@@ -24,6 +24,7 @@ import {
   priorityOptions,
   recurrenceOptions,
 } from "./data/options"
+
 const { RangePicker } = DatePicker
 
 export default function Home() {
@@ -43,10 +44,10 @@ export default function Home() {
       todoApi.search({
         ...searchFormValue,
         dueDateStart: searchFormValue.dueDateRange
-          ? searchFormValue.dueDateRange[0].toISOString()
+          ? searchFormValue.dueDateRange[0].startOf("day").toISOString()
           : undefined,
         dueDateEnd: searchFormValue.dueDateRange
-          ? searchFormValue.dueDateRange[1].toISOString()
+          ? searchFormValue.dueDateRange[1].endOf("day").toISOString()
           : undefined,
       }),
   })
@@ -83,7 +84,10 @@ export default function Home() {
   })
 
   const onFinishCreate = (values: CreateFormValue) => {
-    createTodoMutation.mutate(values)
+    createTodoMutation.mutate({
+      ...values,
+      dueDate: values.dueDate?.toISOString(),
+    })
   }
 
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -108,7 +112,6 @@ export default function Home() {
         className="gap-3"
         form={searchForm}
         initialValues={{
-          layout: "horizontal",
           sortBy: "dueDate",
           sortOrder: "DESC",
         }}

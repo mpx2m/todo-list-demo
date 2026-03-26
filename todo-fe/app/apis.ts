@@ -1,4 +1,5 @@
 import axios from "axios"
+import { Dayjs } from "dayjs"
 
 const TODO_API = "http://localhost:3000"
 
@@ -7,15 +8,19 @@ export interface CreateFormValue {
   description?: string
   priority: string
   status: string
-  dueDate?: Date
+  dueDate?: Dayjs
   recurrence: "NONE" | "DAILY" | "WEEKLY" | "MONTHLY" | "CUSTOM"
-  custom?: number
+  customInterval?: number
+}
+
+export type Create = Omit<CreateFormValue, "dueDate"> & {
+  dueDate?: string
 }
 
 export interface SearchFormValue {
   status?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED"
   priority?: "LOW" | "MEDIUM" | "HIGH"
-  dueDateRange?: [Date, Date]
+  dueDateRange?: [Dayjs, Dayjs]
   dependencyStatus?: "BLOCKED" | "UNBLOCKED"
   sortBy: "dueDate" | "priority" | "status" | "name"
   sortOrder: "ASC" | "DESC"
@@ -33,6 +38,6 @@ export const todoApi = {
     axios
       .get(`${TODO_API}/todo/search`, { params: data })
       .then(res => res.data),
-  createTodo: (data: CreateFormValue) =>
+  createTodo: (data: Create) =>
     axios.post(`${TODO_API}/todo`, data).then(res => res.data),
 }
