@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { Todo } from './schemas/todo.schema';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
+import { SearchTodoDto, SortOrder } from './dto/search-todo.dto';
 
 @Injectable()
 export class TodosService {
@@ -11,6 +12,67 @@ export class TodosService {
 
   async create(createTodoDto: CreateTodoDto): Promise<Todo> {
     return await this.todoModel.create(createTodoDto);
+  }
+
+  async search(query: SearchTodoDto) {
+    const {
+      search,
+      dueDateStart,
+      dueDateEnd,
+      status,
+      priority,
+      sortOrder = SortOrder.DESC,
+      page = 1,
+      limit = 10,
+    } = query;
+
+    const filter: Record<string, any> = {};
+
+    if (search) {
+      filter.$text = { $search: search };
+    }
+
+    if (status) {
+      filter.status = status;
+    }
+    if (priority) {
+      filter.priority = priority;
+    }
+
+    if (dueDateStart || dueDateEnd) {
+      const dateFilter: Record<string, Date> = {};
+
+      if (dueDateStart) {
+        const startDate = new Date(dueDateStart);
+        dateFilter.$gte = startDate;
+      }
+      if (dueDateEnd) {
+        const endDate = new Date(dueDateEnd);
+        endDate.setDate(endDate.getDate() + 1);
+        dateFilter.$lt = endDate;
+      }
+      if (Object.keys(dateFilter).length > 0) {
+        filter.dueDate = dateFilter;
+      }
+    }
+
+    const skip = (page - 1) * limit;
+
+    const sort: Record<string, 1 | -1> = {
+      createdAt: sortOrder === SortOrder.ASC ? 1 : -1,
+    };
+
+    const [total, results] = await Promise.all([
+      this.todoModel.countDocuments(filter).exec(),
+      this.todoModel.find(filter).sort(sort).skip(skip).limit(limit).exec(),
+    ]);
+
+    return {
+      total,
+      page,
+      limit,
+      results,
+    };
   }
 
   async findAll(): Promise<Todo[]> {

@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Query,
   Post,
   Body,
   Patch,
@@ -12,6 +13,7 @@ import { TodosService } from './todos.service';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
 import { MongoIdPipe } from './mongo-id.pipe';
+import { SearchTodoDto } from './dto/search-todo.dto';
 
 @Controller('todo')
 export class TodosController {
@@ -25,6 +27,11 @@ export class TodosController {
   @Get('all')
   findAll() {
     return this.todoService.findAll();
+  }
+
+  @Get('search')
+  search(@Query() query: SearchTodoDto) {
+    return this.todoService.search(query);
   }
 
   @Patch(':id')
