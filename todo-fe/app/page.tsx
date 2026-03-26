@@ -69,16 +69,9 @@ export default function Home() {
 
   // modal
   const [createForm] = Form.useForm()
-  const [createFormValue, setCreateFormValue] = useState<CreateFormValue>({
-    name: "",
-    description: "",
-    priority: "LOW",
-    status: "NOT_STARTED",
-    recurring: "NONE",
-  })
 
   const onFinishCreate = (values: CreateFormValue) => {
-    setCreateFormValue(values)
+    console.log("debug:", values)
     setIsModalOpen(false)
   }
 
@@ -182,6 +175,7 @@ export default function Home() {
         open={isModalOpen}
         onOk={handleOk}
         onCancel={handleCancel}
+        afterClose={() => createForm.resetFields()}
       >
         <Form
           layout={"horizontal"}
