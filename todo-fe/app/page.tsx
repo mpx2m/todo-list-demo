@@ -3,6 +3,14 @@ import { useState } from "react"
 import { Input, InputNumber, Modal, Radio, Select, Table } from "antd"
 import { Button, Form, DatePicker } from "antd"
 import { EditOutlined, SearchOutlined } from "@ant-design/icons"
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query"
+import { todoApi } from "./apis"
 
 const { RangePicker } = DatePicker
 
@@ -29,6 +37,12 @@ export default function Home() {
   const [searchFormValue, setSearchFormValue] = useState<SearchFormValue>({
     sortBy: "dueDate",
   })
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["todos"],
+    queryFn: todoApi.search,
+  })
+  console.log("debug: data", data, isLoading, error)
 
   const dataSource = [
     {
