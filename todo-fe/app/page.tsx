@@ -14,33 +14,43 @@ import {
 import { Button, Form, DatePicker } from "antd"
 import { EditOutlined, SearchOutlined } from "@ant-design/icons"
 import { useQuery, useMutation } from "@tanstack/react-query"
-import { todoApi, CreateFormValue } from "./apis"
+import { todoApi, CreateFormValue, SearchFormValue } from "./apis"
 import { columns } from "./data/columns"
+import { statusOptions, priorityOptions } from "./data/options"
 
 const { RangePicker } = DatePicker
-
-interface SearchFormValue {
-  status?: string
-  priority?: string
-  dueDateRange?: [Date, Date]
-  dependencyStatus?: string
-  sortBy: "dueDate" | "priority" | "status" | "name"
-}
 
 export default function Home() {
   const [messageApi, contextHolder] = message.useMessage()
   const [searchForm] = Form.useForm()
   const [searchFormValue, setSearchFormValue] = useState<SearchFormValue>({
     sortBy: "dueDate",
+    sortOrder: "DESC",
+    page: 1,
+    limit: 10,
   })
+  const [refreshFlag, setRefreshFlag] = useState(1)
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["todos"],
-    queryFn: todoApi.search,
+    queryKey: ["todos", searchFormValue, refreshFlag],
+    queryFn: () =>
+      todoApi.search({
+        ...searchFormValue,
+        dueDateStart: searchFormValue.dueDateRange
+          ? searchFormValue.dueDateRange[0].toISOString()
+          : undefined,
+        dueDateEnd: searchFormValue.dueDateRange
+          ? searchFormValue.dueDateRange[1].toISOString()
+          : undefined,
+      }),
   })
 
   const onFinish = (values: SearchFormValue) => {
-    setSearchFormValue(values)
+    setSearchFormValue(prev => ({
+      ...prev,
+      ...values,
+      page: 1,
+    }))
   }
 
   // modal
@@ -50,8 +60,15 @@ export default function Home() {
     onSuccess: res => {
       if (res.success) {
         messageApi.success("Todo created successfully!")
+
         setIsModalOpen(false)
         createForm.resetFields()
+
+        setSearchFormValue(prev => ({
+          ...prev,
+          page: 1,
+        }))
+        setRefreshFlag(prev => prev + 1)
       }
     },
     onError: error => {
@@ -97,12 +114,7 @@ export default function Home() {
             allowClear
             style={{ width: 150 }}
             placeholder="Status"
-            options={[
-              { value: "NOT_STARTED", label: "Not Started" },
-              { value: "IN_PROGRESS", label: "In Progress" },
-              { value: "COMPLETED", label: "Completed" },
-              { value: "ARCHIVED", label: "Archived" },
-            ]}
+            options={statusOptions}
           />
         </Form.Item>
         <Form.Item label="Priority" name="priority">
@@ -110,11 +122,7 @@ export default function Home() {
             allowClear
             style={{ width: 150 }}
             placeholder="Priority"
-            options={[
-              { value: "LOW", label: "Low" },
-              { value: "MEDIUM", label: "Medium" },
-              { value: "HIGH", label: "High" },
-            ]}
+            options={priorityOptions}
           />
         </Form.Item>
         <Form.Item label="Due day" name="dueDateRange">
@@ -183,6 +191,18 @@ export default function Home() {
         rowKey={"_id"}
         columns={columns}
         className="mt-3"
+        pagination={{
+          current: searchFormValue.page,
+          pageSize: searchFormValue.limit,
+          total: data?.data?.total || 0,
+          onChange: (page, pageSize) => {
+            setSearchFormValue(prev => ({
+              ...prev,
+              page,
+              limit: pageSize,
+            }))
+          },
+        }}
       />
       <Modal
         confirmLoading={createTodoMutation.isPending}
@@ -222,25 +242,10 @@ export default function Home() {
             />
           </Form.Item>
           <Form.Item label="Status" name="status">
-            <Select
-              placeholder="Status"
-              options={[
-                { value: "NOT_STARTED", label: "Not Started" },
-                { value: "IN_PROGRESS", label: "In Progress" },
-                { value: "COMPLETED", label: "Completed" },
-                { value: "ARCHIVED", label: "Archived" },
-              ]}
-            />
+            <Select placeholder="Status" options={statusOptions} />
           </Form.Item>
           <Form.Item label="Priority" name="priority">
-            <Select
-              placeholder="Priority"
-              options={[
-                { value: "LOW", label: "Low" },
-                { value: "MEDIUM", label: "Medium" },
-                { value: "HIGH", label: "High" },
-              ]}
-            />
+            <Select placeholder="Priority" options={priorityOptions} />
           </Form.Item>
           <Form.Item name="dueDate" label="Due date">
             <DatePicker />
