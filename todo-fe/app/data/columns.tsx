@@ -24,8 +24,10 @@ const mapPriority: Record<string, string> = {
 
 export const columns = ({
   onEdit,
+  onAddChild,
 }: {
   onEdit: (record: TodoItem) => void
+  onAddChild: (record: TodoItem) => void
 }): ColumnsType<TodoItem> => [
   {
     title: "Name",
@@ -107,8 +109,8 @@ export const columns = ({
     key: "action",
     render: (_, record) => (
       <>
-        <Button color="primary" variant="text">
-          Add Toto
+        <Button color="primary" variant="text" onClick={() => onAddChild(record)}>
+          Add Todo
         </Button>
         <Divider orientation="vertical" />
         <Button color="primary" variant="text" onClick={() => onEdit(record)}>

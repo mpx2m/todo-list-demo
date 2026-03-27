@@ -33,6 +33,7 @@ export interface CreateFormValue {
 
 export type Create = Omit<CreateFormValue, "dueDate"> & {
   dueDate?: string
+  parentId?: string
 }
 
 export interface SearchFormValue {
@@ -54,6 +55,8 @@ export type Search = Omit<SearchFormValue, "dueDateRange"> & {
 
 export interface TodoItem {
   _id: string
+  path?: string
+  depth: number
   name: string
   description?: string
   priority: Priority
@@ -61,5 +64,6 @@ export interface TodoItem {
   dueDate?: string
   recurrence: Recurrence
   customInterval?: number
+  children: TodoItem[]
   createdAt: string
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Table, Alert } from "antd"
 import { useQueryClient } from "@tanstack/react-query"
 import { useQuery } from "@tanstack/react-query"
@@ -9,6 +9,7 @@ import { todoApi } from "./apis"
 import { columns } from "./data/columns"
 import { TodoModal } from "./components/TodoModal"
 import { TodoSearchForm } from "./components/TodoSearchForm"
+import { MinusCircleTwoTone } from "@ant-design/icons"
 
 export default function Home() {
   const queryClient = useQueryClient()
@@ -19,7 +20,10 @@ export default function Home() {
     limit: 10,
   })
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null)
+  const [editingTodo, setEditingTodo] = useState<TodoItem | undefined>(
+    undefined,
+  )
+  const [parentId, setParentId] = useState<string | undefined>(undefined)
 
   const buildSearchParams = (value: SearchFormValue) => ({
     ...value,
@@ -34,6 +38,21 @@ export default function Home() {
     queryKey: ["todos", JSON.stringify(params)],
     queryFn: () => todoApi.search(params),
   })
+
+  const autoExpandedRowKeys = useMemo(() => {
+    const collectKeys = (rows: TodoItem[]): string[] => {
+      const keys: string[] = []
+      for (const row of rows) {
+        keys.push(row._id)
+        if (row.children?.length) {
+          keys.push(...collectKeys(row.children))
+        }
+      }
+      return keys
+    }
+
+    return collectKeys((data?.data?.results || []) as TodoItem[])
+  }, [data?.data?.results])
 
   const onFinish = (values: SearchFormValue) => {
     setSearchFormValue(prev => ({
@@ -53,6 +72,8 @@ export default function Home() {
       <TodoSearchForm
         onSearch={onFinish}
         onAdd={() => {
+          setEditingTodo(undefined)
+          setParentId(undefined)
           setIsModalOpen(true)
         }}
       />
@@ -65,12 +86,31 @@ export default function Home() {
         </section>
       )}
       <Table
+        indentSize={40}
+        expandable={{
+          expandedRowKeys: autoExpandedRowKeys,
+          expandIcon: () => {
+            return (
+              <span className="mr-2">
+                <MinusCircleTwoTone />
+              </span>
+            )
+          },
+        }}
+        size="small"
+        bordered
         loading={isLoading}
         dataSource={(data?.data?.results || []) as TodoItem[]}
         rowKey={(record: TodoItem) => record._id}
         columns={columns({
+          onAddChild: record => {
+            setEditingTodo(undefined)
+            setParentId(record._id)
+            setIsModalOpen(true)
+          },
           onEdit: record => {
             setEditingTodo(record)
+            setParentId(undefined)
             setIsModalOpen(true)
           },
         })}
@@ -91,6 +131,7 @@ export default function Home() {
       <TodoModal
         open={isModalOpen}
         editingTodo={editingTodo}
+        parentId={parentId}
         onCancel={() => setIsModalOpen(false)}
         onSuccess={modalSuccess}
       />

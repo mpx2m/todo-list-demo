@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsString,
   IsNotEmpty,
+  IsMongoId,
 } from 'class-validator';
 
 export enum TodoStatus {
@@ -34,6 +35,10 @@ export class Todo {
   name: string;
 
   description?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  parentId?: string;
 
   @IsOptional()
   @IsDateString()

@@ -1,18 +1,60 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, ClientSession } from 'mongoose';
 import { Todo } from './schemas/todo.schema';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
 import { SearchTodoDto, SortOrder } from './dto/search-todo.dto';
 import { Recurrence } from './entities/todo.entity';
+import { TodoTreeNode } from './types';
 
 @Injectable()
 export class TodosService {
   constructor(@InjectModel(Todo.name) private todoModel: Model<Todo>) {}
 
   async create(createTodoDto: CreateTodoDto): Promise<Todo> {
-    return await this.todoModel.create(createTodoDto);
+    const { parentId, ...rest } = createTodoDto;
+    const payload: Record<string, any> = {
+      ...rest,
+      path: null,
+      depth: 0,
+    };
+
+    if (!parentId) {
+      return await this.todoModel.create(payload);
+    }
+
+    const session: ClientSession = await this.todoModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const parent = await this.todoModel
+        .findById(parentId)
+        .session(session)
+        .lean()
+        .exec();
+
+      if (!parent) {
+        throw new NotFoundException(
+          `Parent todo with id ${parentId} not found`,
+        );
+      }
+
+      const normalizedParentId = String(parent._id);
+      payload.path = parent.path
+        ? `${parent.path}:${normalizedParentId}`
+        : normalizedParentId;
+      payload.depth = (parent.depth ?? 0) + 1;
+
+      const [createdTodo] = await this.todoModel.create([payload], { session });
+      await session.commitTransaction();
+      return createdTodo;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      await session.endSession();
+    }
   }
 
   async findAll(): Promise<Todo[]> {
@@ -33,6 +75,7 @@ export class TodosService {
     } = query;
 
     const filter: Record<string, any> = {};
+    filter.path = null;
 
     if (status) {
       filter.status = status;
@@ -41,7 +84,7 @@ export class TodosService {
       filter.priority = priority;
     }
     if (name?.trim()) {
-      filter.name = { $regex: name.trim(), $options: 'i' };
+      filter.$text = { $search: name.trim() };
     }
 
     if (dueDateStart || dueDateEnd) {
@@ -65,16 +108,57 @@ export class TodosService {
       _id: -1,
     };
 
-    const [total, results] = await Promise.all([
+    const [total, rootResults] = await Promise.all([
       this.todoModel.countDocuments(filter).exec(),
-      this.todoModel.find(filter).sort(sort).skip(skip).limit(limit).exec(),
+      this.todoModel
+        .find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
     ]);
+
+    const rootIds = rootResults.map((todo) => String(todo._id));
+    const descendants =
+      rootIds.length === 0
+        ? []
+        : await this.todoModel
+            .find({
+              $or: rootIds.map((id) => ({
+                path: { $regex: `^${id}(:|$)` },
+              })),
+            })
+            .sort(sort)
+            .lean()
+            .exec();
+
+    const nodeMap = new Map<string, TodoTreeNode>();
+
+    for (const todo of [...rootResults, ...descendants]) {
+      nodeMap.set(String(todo._id), {
+        ...todo,
+        _id: String(todo._id),
+        children: [],
+      });
+    }
+
+    for (const todo of descendants) {
+      const currentId = String(todo._id);
+      const pathSegments = (todo.path as string).split(':').filter(Boolean);
+      const parentId = pathSegments[pathSegments.length - 1];
+      const parentNode = nodeMap.get(parentId)!;
+      const currentNode = nodeMap.get(currentId)!;
+      parentNode.children.push(currentNode);
+    }
+
+    const resultsWithChildren = rootIds.map((id) => nodeMap.get(id));
 
     return {
       total,
       page,
       limit,
-      results,
+      results: resultsWithChildren,
     };
   }
 

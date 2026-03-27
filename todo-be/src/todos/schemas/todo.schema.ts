@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 import { TodoStatus, TodoPriority, Recurrence } from '../entities/todo.entity';
 
 export type TodoDocument = HydratedDocument<Todo>;
@@ -15,8 +15,11 @@ export class Todo {
   @Prop()
   dueDate?: Date;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Todo' }], default: [] })
-  dependencies: Types.ObjectId[];
+  @Prop()
+  path?: string;
+
+  @Prop({ default: 0 })
+  depth: number;
 
   @Prop({ enum: TodoStatus, default: TodoStatus.NOT_STARTED })
   status: TodoStatus;
@@ -37,7 +40,5 @@ export class Todo {
 export const TodoSchema = SchemaFactory.createForClass(Todo);
 
 TodoSchema.index({ name: 'text' });
-TodoSchema.index({ name: 1 });
-TodoSchema.index({ status: 1 });
-TodoSchema.index({ dueDate: 1 });
-TodoSchema.index({ priority: 1 });
+TodoSchema.index({ status: 1, priority: 1, dueDate: 1 });
+TodoSchema.index({ path: 1 });

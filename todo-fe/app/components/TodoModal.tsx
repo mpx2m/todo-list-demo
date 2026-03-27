@@ -23,7 +23,8 @@ import { todoApi } from "../apis"
 
 interface TodoModalProps {
   open: boolean
-  editingTodo: TodoItem | null
+  editingTodo?: TodoItem
+  parentId?: string
   onCancel: () => void
   onSuccess: () => void
 }
@@ -31,6 +32,7 @@ interface TodoModalProps {
 export function TodoModal({
   open,
   editingTodo,
+  parentId,
   onCancel,
   onSuccess,
 }: TodoModalProps) {
@@ -83,6 +85,7 @@ export function TodoModal({
     const payload: Create = {
       ...values,
       dueDate: values.dueDate?.toISOString(),
+      parentId: !editingTodo ? parentId || undefined : undefined,
       customInterval:
         values.recurrence === "CUSTOM" ? values.customInterval : undefined,
     }
