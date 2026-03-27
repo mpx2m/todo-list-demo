@@ -9,7 +9,6 @@ import { todoApi } from "./apis"
 import { columns } from "./data/columns"
 import { TodoModal } from "./components/TodoModal"
 import { TodoSearchForm } from "./components/TodoSearchForm"
-import { MinusCircleTwoTone } from "@ant-design/icons"
 
 export default function Home() {
   const [messageApi, contextHolder] = message.useMessage()
@@ -106,7 +105,6 @@ export default function Home() {
         </section>
       )}
       <Table
-        indentSize={40}
         expandable={{
           expandedRowKeys: autoExpandedRowKeys,
         }}

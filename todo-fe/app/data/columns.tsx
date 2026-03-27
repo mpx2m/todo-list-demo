@@ -82,13 +82,13 @@ export const columns = ({
     title: "Dependency",
     dataIndex: "dependencyStatus",
     key: "dependencyStatus",
-    render: dependencyStatus => {
+    render: (dependencyStatus, record) => {
       return (
-        <>
+        <span style={{ display: "inline-flex", marginLeft: record.depth * 16 }}>
           <Badge
             status={
               dependencyStatus === DependencyStatus.BLOCKED
-                ? "error"
+                ? "warning"
                 : "processing"
             }
           />
@@ -99,7 +99,7 @@ export const columns = ({
               )?.label
             }
           </span>
-        </>
+        </span>
       )
     },
   },
