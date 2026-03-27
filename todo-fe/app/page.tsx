@@ -1,21 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { Input, Select, Table, Alert, Button, Form, DatePicker } from "antd"
+import { Table, Alert } from "antd"
 import { useQueryClient } from "@tanstack/react-query"
-import { EditOutlined, SearchOutlined } from "@ant-design/icons"
 import { useQuery } from "@tanstack/react-query"
 import { SearchFormValue, TodoItem } from "./data/types"
 import { todoApi } from "./apis"
 import { columns } from "./data/columns"
-import { statusOptions, priorityOptions } from "./data/options"
 import { TodoModal } from "./components/TodoModal"
-
-const { RangePicker } = DatePicker
+import { TodoSearchForm } from "./components/TodoSearchForm"
 
 export default function Home() {
   const queryClient = useQueryClient()
-  const [searchForm] = Form.useForm()
   const [searchFormValue, setSearchFormValue] = useState<SearchFormValue>({
     sortBy: "dueDate",
     sortOrder: "DESC",
@@ -54,94 +50,12 @@ export default function Home() {
 
   return (
     <main className="p-6">
-      <Form
-        layout={"inline"}
-        className="gap-3"
-        form={searchForm}
-        initialValues={{
-          sortBy: "dueDate",
-          sortOrder: "DESC",
+      <TodoSearchForm
+        onSearch={onFinish}
+        onAdd={() => {
+          setIsModalOpen(true)
         }}
-        onFinish={onFinish}
-      >
-        <Form.Item label="Name" name="name">
-          <Input allowClear style={{ width: 150 }} placeholder="Name" />
-        </Form.Item>
-        <Form.Item label="Status" name="status">
-          <Select
-            allowClear
-            style={{ width: 150 }}
-            placeholder="Status"
-            options={statusOptions}
-          />
-        </Form.Item>
-        <Form.Item label="Priority" name="priority">
-          <Select
-            allowClear
-            style={{ width: 150 }}
-            placeholder="Priority"
-            options={priorityOptions}
-          />
-        </Form.Item>
-        <Form.Item label="Due day" name="dueDateRange">
-          <RangePicker allowClear />
-        </Form.Item>
-        <Form.Item label="Dependency" name="dependencyStatus">
-          <Select
-            allowClear
-            style={{ width: 150 }}
-            placeholder="Status"
-            options={[
-              { value: "BLOCKED", label: "Blocked" },
-              { value: "UNBLOCKED", label: "Unblocked" },
-            ]}
-          />
-        </Form.Item>
-        <Form.Item label="Sort by" name="sortBy">
-          <Select
-            style={{ width: 120 }}
-            placeholder="Sort by"
-            options={[
-              { value: "dueDate", label: "Due date" },
-              { value: "priority", label: "Priority" },
-              { value: "status", label: "Status" },
-              { value: "name", label: "Name" },
-            ]}
-          />
-        </Form.Item>
-        <Form.Item label="Sort Order" name="sortOrder">
-          <Select
-            style={{ width: 120 }}
-            placeholder="Sort Order"
-            options={[
-              { value: "DESC", label: "Desc" },
-              { value: "ASC", label: "Asc" },
-            ]}
-          />
-        </Form.Item>
-        <Form.Item>
-          <Button
-            color="primary"
-            variant="outlined"
-            htmlType="submit"
-            icon={<SearchOutlined />}
-          >
-            Search
-          </Button>
-        </Form.Item>
-        <Form.Item>
-          <Button
-            type="primary"
-            icon={<EditOutlined />}
-            onClick={() => {
-              setEditingTodo(null)
-              setIsModalOpen(true)
-            }}
-          >
-            Add Todo
-          </Button>
-        </Form.Item>
-      </Form>
+      />
       {error && (
         <section className="mt-3">
           <Alert
