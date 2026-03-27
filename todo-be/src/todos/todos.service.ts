@@ -20,6 +20,7 @@ export class TodosService {
 
   async search(query: SearchTodoDto) {
     const {
+      name,
       dueDateStart,
       dueDateEnd,
       status,
@@ -38,6 +39,9 @@ export class TodosService {
     if (priority) {
       filter.priority = priority;
     }
+    if (name?.trim()) {
+      filter.name = { $regex: name.trim(), $options: 'i' };
+    }
 
     if (dueDateStart || dueDateEnd) {
       const dateFilter: Record<string, Date> = {};
@@ -47,9 +51,7 @@ export class TodosService {
         dateFilter.$gte = startDate;
       }
       if (dueDateEnd) {
-        const endDate = new Date(dueDateEnd);
-        endDate.setDate(endDate.getDate() + 1);
-        dateFilter.$lt = endDate;
+        dateFilter.$lte = new Date(dueDateEnd);
       }
       if (Object.keys(dateFilter).length > 0) {
         filter.dueDate = dateFilter;

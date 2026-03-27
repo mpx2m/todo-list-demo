@@ -1,4 +1,11 @@
-import { IsDateString, IsOptional, IsEnum, Min, IsInt } from 'class-validator';
+import {
+  IsDateString,
+  IsOptional,
+  IsEnum,
+  Min,
+  IsInt,
+  IsString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { TodoPriority, TodoStatus } from '../entities/todo.entity';
 
@@ -20,6 +27,10 @@ export enum SortOrder {
 }
 
 export class SearchTodoDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
   @IsOptional()
   @IsEnum(TodoStatus)
   status?: TodoStatus;

@@ -40,6 +40,7 @@ export default function Home() {
 
   const buildSearchParams = (value: SearchFormValue) => ({
     ...value,
+    dueDateRange: undefined,
     dueDateStart: value.dueDateRange?.[0]?.startOf("day").toISOString(),
     dueDateEnd: value.dueDateRange?.[1]?.endOf("day").toISOString(),
   })
@@ -116,6 +117,9 @@ export default function Home() {
         }}
         onFinish={onFinish}
       >
+        <Form.Item label="Name" name="name">
+          <Input allowClear style={{ width: 150 }} placeholder="Name" />
+        </Form.Item>
         <Form.Item label="Status" name="status">
           <Select
             allowClear

@@ -36,6 +36,8 @@ export class Todo {
 
 export const TodoSchema = SchemaFactory.createForClass(Todo);
 
-TodoSchema.index({ status: 1, priority: 1, dueDate: 1 });
-
+TodoSchema.index({ name: 'text' });
 TodoSchema.index({ name: 1 });
+TodoSchema.index({ status: 1 });
+TodoSchema.index({ dueDate: 1 });
+TodoSchema.index({ priority: 1 });

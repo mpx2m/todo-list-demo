@@ -18,6 +18,7 @@ export type Create = Omit<CreateFormValue, "dueDate"> & {
 }
 
 export interface SearchFormValue {
+  name?: string
   status?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED"
   priority?: "LOW" | "MEDIUM" | "HIGH"
   dueDateRange?: [Dayjs, Dayjs]
