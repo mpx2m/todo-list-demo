@@ -103,11 +103,15 @@ export const columns = [
     key: "action",
     render: () => (
       <>
-        <Button color="primary" variant="text" icon={<EditOutlined />}>
+        <Button color="primary" variant="text">
           Add Toto
         </Button>
         <Divider orientation="vertical" />
-        <Button color="danger" variant="text" icon={<DeleteOutlined />}>
+        <Button color="primary" variant="text">
+          Edit
+        </Button>
+        <Divider orientation="vertical" />
+        <Button color="danger" variant="text">
           Delete
         </Button>
       </>
