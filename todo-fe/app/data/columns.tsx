@@ -1,10 +1,12 @@
-import { Tag } from "antd"
+import { Tag, Button, Divider } from "antd"
 import { priorityOptions, recurrenceOptions, statusOptions } from "./options"
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   SaveOutlined,
   SyncOutlined,
+  EditOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons"
 
 const mapStatus: Record<string, { icon: React.ReactNode; color: string }> = {
@@ -40,7 +42,7 @@ export const columns = [
         <Tag
           icon={mapStatus[status].icon}
           color={mapStatus[status].color}
-          variant={"filled"}
+          variant={"outlined"}
         >
           {statusOptions.find(option => option.value === status)?.label}
         </Tag>
@@ -95,5 +97,20 @@ export const columns = [
     title: "Custom Interval day(s)",
     dataIndex: "customInterval",
     key: "customInterval",
+  },
+  {
+    title: "Action",
+    key: "action",
+    render: () => (
+      <>
+        <Button color="primary" variant="text" icon={<EditOutlined />}>
+          Add Toto
+        </Button>
+        <Divider orientation="vertical" />
+        <Button color="danger" variant="text" icon={<DeleteOutlined />}>
+          Delete
+        </Button>
+      </>
+    ),
   },
 ]
