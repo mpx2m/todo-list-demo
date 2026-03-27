@@ -1,4 +1,4 @@
-import { Tag, Button, Divider, Tooltip, Popconfirm } from "antd"
+import { Tag, Button, Divider, Tooltip, Popconfirm, Badge } from "antd"
 import type { ColumnsType } from "antd/es/table"
 import { priorityOptions, recurrenceOptions, statusOptions } from "./options"
 import {
@@ -7,19 +7,36 @@ import {
   SaveOutlined,
   SyncOutlined,
 } from "@ant-design/icons"
-import { TodoItem } from "../data/types"
+import { TodoItem, Status } from "../data/types"
 
 const mapStatus: Record<string, { icon: React.ReactNode; color: string }> = {
   NOT_STARTED: { icon: <ClockCircleOutlined />, color: "default" },
-  IN_PROGRESS: { icon: <SyncOutlined spin />, color: "processing" },
-  COMPLETED: { icon: <CheckCircleOutlined />, color: "success" },
-  ARCHIVED: { icon: <SaveOutlined />, color: "warning" },
+  IN_PROGRESS: { icon: <SyncOutlined spin />, color: "blue" },
+  COMPLETED: { icon: <CheckCircleOutlined />, color: "green" },
+  ARCHIVED: { icon: <SaveOutlined />, color: "geekblue" },
 }
 
 const mapPriority: Record<string, string> = {
   LOW: "default",
   MEDIUM: "blue",
   HIGH: "red",
+}
+
+const hasBlockedDescendant = (children: TodoItem[] = []): boolean => {
+  for (const child of children) {
+    if (
+      child.status === Status.NOT_STARTED ||
+      child.status === Status.IN_PROGRESS
+    ) {
+      return true
+    }
+
+    if (hasBlockedDescendant(child.children || [])) {
+      return true
+    }
+  }
+
+  return false
 }
 
 export const columns = ({
@@ -67,9 +84,26 @@ export const columns = ({
     key: "priority",
     render: (priority: string) => {
       return (
-        <Tag color={mapPriority[priority]}>
+        <Tag color={mapPriority[priority]} variant={"outlined"}>
           {priorityOptions.find(option => option.value === priority)?.label}
         </Tag>
+      )
+    },
+  },
+  {
+    title: "Dependency",
+    key: "dependency",
+    render: (_, record) => {
+      return hasBlockedDescendant(record.children) ? (
+        <>
+          <Badge status="error" />
+          <span className="ml-2">Blocked</span>
+        </>
+      ) : (
+        <>
+          <Badge status="processing" />
+          <span className="ml-2">Unblocked</span>
+        </>
       )
     },
   },

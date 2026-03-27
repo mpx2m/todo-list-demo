@@ -1,19 +1,19 @@
 import { Dayjs } from "dayjs"
 
-enum Status {
+export enum Status {
   NOT_STARTED = "NOT_STARTED",
   IN_PROGRESS = "IN_PROGRESS",
   COMPLETED = "COMPLETED",
   ARCHIVED = "ARCHIVED",
 }
 
-enum Priority {
+export enum Priority {
   LOW = "LOW",
   MEDIUM = "MEDIUM",
   HIGH = "HIGH",
 }
 
-enum Recurrence {
+export enum Recurrence {
   NONE = "NONE",
   DAILY = "DAILY",
   WEEKLY = "WEEKLY",

@@ -18,3 +18,8 @@ export const recurrenceOptions = [
   { value: "MONTHLY", label: "Monthly" },
   { value: "CUSTOM", label: "Custom" },
 ]
+
+export const dependencyStatusOptions = [
+  { value: "BLOCKED", label: "Blocked" },
+  { value: "UNBLOCKED", label: "Unblocked" },
+]
