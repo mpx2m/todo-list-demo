@@ -1,4 +1,4 @@
-import { Tag, Button, Divider, Tooltip, Popconfirm, Badge } from "antd"
+import { Tag, Button, Tooltip, Popconfirm, Badge, Divider } from "antd"
 import type { ColumnsType } from "antd/es/table"
 import {
   priorityOptions,
@@ -156,10 +156,13 @@ export const columns = ({
             </>
           }
         >
-          <a>Details</a>
+          <Button size="small" color="primary" variant="text">
+            Details
+          </Button>
         </Tooltip>
         <Divider orientation="vertical" />
         <Button
+          size="small"
           color="primary"
           variant="text"
           onClick={() => onAddChild(record)}
@@ -167,7 +170,12 @@ export const columns = ({
           Add Todo
         </Button>
         <Divider orientation="vertical" />
-        <Button color="primary" variant="text" onClick={() => onEdit(record)}>
+        <Button
+          size="small"
+          color="primary"
+          variant="text"
+          onClick={() => onEdit(record)}
+        >
           Edit
         </Button>
         <Divider orientation="vertical" />
@@ -180,7 +188,7 @@ export const columns = ({
           }}
           onConfirm={() => onDelete(record)}
         >
-          <Button color="danger" variant="text">
+          <Button size="small" color="danger" variant="text">
             Delete
           </Button>
         </Popconfirm>
