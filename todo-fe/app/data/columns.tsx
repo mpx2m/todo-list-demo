@@ -1,13 +1,13 @@
 import { Tag, Button, Divider } from "antd"
+import type { ColumnsType } from "antd/es/table"
 import { priorityOptions, recurrenceOptions, statusOptions } from "./options"
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   SaveOutlined,
   SyncOutlined,
-  EditOutlined,
-  DeleteOutlined,
 } from "@ant-design/icons"
+import { TodoItem } from "../data/types"
 
 const mapStatus: Record<string, { icon: React.ReactNode; color: string }> = {
   NOT_STARTED: { icon: <ClockCircleOutlined />, color: "default" },
@@ -22,7 +22,11 @@ const mapPriority: Record<string, string> = {
   HIGH: "red",
 }
 
-export const columns = [
+export const columns = ({
+  onEdit,
+}: {
+  onEdit: (record: TodoItem) => void
+}): ColumnsType<TodoItem> => [
   {
     title: "Name",
     dataIndex: "name",
@@ -101,13 +105,13 @@ export const columns = [
   {
     title: "Action",
     key: "action",
-    render: () => (
+    render: (_, record) => (
       <>
         <Button color="primary" variant="text">
           Add Toto
         </Button>
         <Divider orientation="vertical" />
-        <Button color="primary" variant="text">
+        <Button color="primary" variant="text" onClick={() => onEdit(record)}>
           Edit
         </Button>
         <Divider orientation="vertical" />

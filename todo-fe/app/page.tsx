@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import dayjs from "dayjs"
 import {
   Input,
   InputNumber,
@@ -17,7 +18,13 @@ import {
 import { useQueryClient } from "@tanstack/react-query"
 import { EditOutlined, SearchOutlined } from "@ant-design/icons"
 import { useQuery, useMutation } from "@tanstack/react-query"
-import { todoApi, CreateFormValue, SearchFormValue } from "./apis"
+import {
+  Create,
+  CreateFormValue,
+  SearchFormValue,
+  TodoItem,
+} from "./data/types"
+import { todoApi } from "./apis"
 import { columns } from "./data/columns"
 import {
   statusOptions,
@@ -61,21 +68,55 @@ export default function Home() {
   }
 
   // modal
-  const [createForm] = Form.useForm()
+  const [todoForm] = Form.useForm()
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null)
+
+  useEffect(() => {
+    if (!isModalOpen) {
+      return
+    }
+
+    if (editingTodo) {
+      todoForm.setFieldsValue({
+        ...editingTodo,
+        dueDate: editingTodo.dueDate ? dayjs(editingTodo.dueDate) : undefined,
+      })
+    } else {
+      todoForm.resetFields()
+    }
+  }, [isModalOpen, editingTodo, todoForm])
+
+  const refreshTable = () => {
+    if (editingTodo || searchFormValue.page === 1) {
+      queryClient.invalidateQueries({ queryKey: ["todos"] })
+    } else {
+      setSearchFormValue(prev => ({ ...prev, page: 1 }))
+    }
+  }
+
   const createTodoMutation = useMutation({
     mutationFn: todoApi.createTodo,
     onSuccess: res => {
       if (res.success) {
         messageApi.success("Todo created successfully!")
-
         setIsModalOpen(false)
-        createForm.resetFields()
+        refreshTable()
+      }
+    },
+    onError: error => {
+      messageApi.error(error.message || "Request failed")
+    },
+  })
 
-        if (searchFormValue.page === 1) {
-          queryClient.invalidateQueries({ queryKey: ["todos"] })
-        } else {
-          setSearchFormValue(prev => ({ ...prev, page: 1 }))
-        }
+  const updateTodoMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Create> }) =>
+      todoApi.updateTodo(id, data),
+    onSuccess: res => {
+      if (res.success) {
+        messageApi.success("Todo updated successfully!")
+        setIsModalOpen(false)
+        refreshTable()
       }
     },
     onError: error => {
@@ -84,15 +125,30 @@ export default function Home() {
   })
 
   const onFinishCreate = (values: CreateFormValue) => {
-    createTodoMutation.mutate({
+    const payload = {
       ...values,
       dueDate: values.dueDate?.toISOString(),
-    })
+      customInterval:
+        values.recurrence === "CUSTOM" ? values.customInterval : undefined,
+    }
+
+    if (editingTodo) {
+      updateTodoMutation.mutate({
+        id: editingTodo._id,
+        data: payload,
+      })
+    } else {
+      createTodoMutation.mutate(payload)
+    }
   }
 
-  const [isModalOpen, setIsModalOpen] = useState(false)
-
   const showModal = () => {
+    setEditingTodo(null)
+    setIsModalOpen(true)
+  }
+
+  const showEditModal = (record: TodoItem) => {
+    setEditingTodo(record)
     setIsModalOpen(true)
   }
 
@@ -101,7 +157,7 @@ export default function Home() {
   }
 
   const handleOk = () => {
-    createForm.submit()
+    todoForm.submit()
   }
 
   return (
@@ -198,9 +254,9 @@ export default function Home() {
       )}
       <Table
         loading={isLoading}
-        dataSource={data?.data?.results || []}
-        rowKey={(record: { _id: string }) => record._id}
-        columns={columns}
+        dataSource={(data?.data?.results || []) as TodoItem[]}
+        rowKey={(record: TodoItem) => record._id}
+        columns={columns({ onEdit: showEditModal })}
         className="mt-3"
         pagination={{
           showTotal: total => `Total ${total} items`,
@@ -216,10 +272,11 @@ export default function Home() {
         }}
       />
       <Modal
-        confirmLoading={createTodoMutation.isPending}
+        confirmLoading={
+          createTodoMutation.isPending || updateTodoMutation.isPending
+        }
         centered
-        destroyOnHidden
-        title="Add Todo"
+        title={editingTodo ? "Edit Todo" : "Add Todo"}
         open={isModalOpen}
         onOk={handleOk}
         onCancel={handleCancel}
@@ -228,7 +285,7 @@ export default function Home() {
           layout={"horizontal"}
           labelCol={{ span: 5 }}
           wrapperCol={{ span: 17 }}
-          form={createForm}
+          form={todoForm}
           initialValues={{
             layout: "horizontal",
             status: "NOT_STARTED",
