@@ -1,4 +1,4 @@
-import { Tag, Button, Divider, Tooltip } from "antd"
+import { Tag, Button, Divider, Tooltip, Popconfirm } from "antd"
 import type { ColumnsType } from "antd/es/table"
 import { priorityOptions, recurrenceOptions, statusOptions } from "./options"
 import {
@@ -25,9 +25,15 @@ const mapPriority: Record<string, string> = {
 export const columns = ({
   onEdit,
   onAddChild,
+  onDelete,
+  isDeleting,
+  deletingId,
 }: {
   onEdit: (record: TodoItem) => void
   onAddChild: (record: TodoItem) => void
+  onDelete: (record: TodoItem) => void
+  isDeleting: boolean
+  deletingId?: string
 }): ColumnsType<TodoItem> => [
   {
     title: "Name",
@@ -92,9 +98,20 @@ export const columns = ({
     },
   },
   {
-    title: "Custom Interval day(s)",
+    title: "Custom Interval",
     dataIndex: "customInterval",
     key: "customInterval",
+    render: customInterval => {
+      if (!customInterval) {
+        return null
+      }
+
+      if (customInterval === 1) {
+        return "1 day"
+      } else {
+        return `${customInterval} days`
+      }
+    },
   },
   {
     title: "Action",
@@ -124,9 +141,19 @@ export const columns = ({
           Edit
         </Button>
         <Divider orientation="vertical" />
-        <Button color="danger" variant="text">
-          Delete
-        </Button>
+        <Popconfirm
+          title="Delete this todo?"
+          description="This will delete the selected todo and all descendants."
+          okButtonProps={{
+            danger: true,
+            loading: isDeleting && deletingId === record._id,
+          }}
+          onConfirm={() => onDelete(record)}
+        >
+          <Button color="danger" variant="text">
+            Delete
+          </Button>
+        </Popconfirm>
       </>
     ),
   },

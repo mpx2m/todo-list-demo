@@ -11,4 +11,6 @@ export const todoApi = {
     axios.post(`${TODO_API}/todo`, data).then(res => res.data),
   updateTodo: (id: string, data: Partial<Create>) =>
     axios.patch(`${TODO_API}/todo/${id}`, data).then(res => res.data),
+  deleteTodo: (id: string) =>
+    axios.delete(`${TODO_API}/todo/${id}`).then(res => res.data),
 }

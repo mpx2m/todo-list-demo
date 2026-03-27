@@ -1,9 +1,9 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Table, Alert } from "antd"
+import { Table, Alert, message } from "antd"
 import { useQueryClient } from "@tanstack/react-query"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { SearchFormValue, TodoItem } from "./data/types"
 import { todoApi } from "./apis"
 import { columns } from "./data/columns"
@@ -12,6 +12,7 @@ import { TodoSearchForm } from "./components/TodoSearchForm"
 import { MinusCircleTwoTone } from "@ant-design/icons"
 
 export default function Home() {
+  const [messageApi, contextHolder] = message.useMessage()
   const queryClient = useQueryClient()
   const [searchFormValue, setSearchFormValue] = useState<SearchFormValue>({
     sortBy: "dueDate",
@@ -67,8 +68,27 @@ export default function Home() {
     queryClient.invalidateQueries({ queryKey: ["todos"] })
   }
 
+  const deleteTodoMutation = useMutation({
+    mutationFn: (id: string) => todoApi.deleteTodo(id),
+    onSuccess: () => {
+      messageApi.success("Todo deleted successfully!")
+      if (searchFormValue.page !== 1) {
+        setSearchFormValue(prev => ({
+          ...prev,
+          page: 1,
+        }))
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["todos"] })
+      }
+    },
+    onError: error => {
+      messageApi.error(error.message || "Delete failed")
+    },
+  })
+
   return (
     <main className="p-6">
+      {contextHolder}
       <TodoSearchForm
         onSearch={onFinish}
         onAdd={() => {
@@ -113,6 +133,11 @@ export default function Home() {
             setParentId(undefined)
             setIsModalOpen(true)
           },
+          onDelete: record => {
+            deleteTodoMutation.mutate(record._id)
+          },
+          isDeleting: deleteTodoMutation.isPending,
+          deletingId: deleteTodoMutation.variables,
         })}
         className="mt-3"
         pagination={{

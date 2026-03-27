@@ -28,7 +28,7 @@ export class TodosService {
 
     try {
       const parent = await this.todoModel
-        .findById(parentId)
+        .findOne({ _id: parentId, deletedAt: null })
         .session(session)
         .lean()
         .exec();
@@ -57,7 +57,7 @@ export class TodosService {
   }
 
   async findAll(): Promise<Todo[]> {
-    return this.todoModel.find().exec();
+    return this.todoModel.find({ deletedAt: null }).exec();
   }
 
   async search(query: SearchTodoDto) {
@@ -75,6 +75,7 @@ export class TodosService {
 
     const filter: Record<string, any> = {};
     filter.path = null;
+    filter.deletedAt = null;
 
     if (status) {
       filter.status = status;
@@ -124,6 +125,7 @@ export class TodosService {
         ? []
         : await this.todoModel
             .find({
+              deletedAt: null,
               $or: rootIds.map((id) => ({
                 path: { $regex: `^${id}(:|$)` },
               })),
@@ -162,7 +164,7 @@ export class TodosService {
   }
 
   async findOne(id: string): Promise<Todo | null> {
-    return this.todoModel.findById(id).exec();
+    return this.todoModel.findOne({ _id: id, deletedAt: null }).exec();
   }
 
   async update(id: string, updateTodoDto: UpdateTodoDto): Promise<Todo | null> {
@@ -180,11 +182,52 @@ export class TodosService {
     }
 
     return this.todoModel
-      .findByIdAndUpdate(id, updatePayload, { new: true })
+      .findOneAndUpdate({ _id: id, deletedAt: null }, updatePayload, {
+        new: true,
+      })
       .exec();
   }
 
   async remove(id: string): Promise<Todo | null> {
-    return await this.todoModel.findByIdAndDelete(id).exec();
+    const session: ClientSession = await this.todoModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const todo = await this.todoModel
+        .findOne({ _id: id, deletedAt: null })
+        .session(session)
+        .exec();
+
+      if (!todo) {
+        await session.abortTransaction();
+        return null;
+      }
+
+      const now = new Date();
+      const todoId = String(todo._id);
+      const subtreePath = todo.path ? `${todo.path}:${todoId}` : todoId;
+
+      await this.todoModel
+        .updateMany(
+          {
+            deletedAt: null,
+            $or: [
+              { _id: todo._id },
+              { path: { $regex: `^${subtreePath}(:|$)` } },
+            ],
+          },
+          { $set: { deletedAt: now } },
+          { session },
+        )
+        .exec();
+
+      await session.commitTransaction();
+      return todo;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      await session.endSession();
+    }
   }
 }
