@@ -5,6 +5,7 @@ import { Todo } from './schemas/todo.schema';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
 import { SearchTodoDto, SortOrder } from './dto/search-todo.dto';
+import { Recurrence } from './entities/todo.entity';
 
 @Injectable()
 export class TodosService {
@@ -82,8 +83,21 @@ export class TodosService {
   }
 
   async update(id: string, updateTodoDto: UpdateTodoDto): Promise<Todo | null> {
+    const setPayload = Object.fromEntries(
+      Object.entries(updateTodoDto).filter(([, v]) => v !== undefined),
+    );
+
+    const updatePayload: Record<string, any> = { $set: setPayload };
+
+    if (
+      updateTodoDto.recurrence &&
+      updateTodoDto.recurrence !== Recurrence.CUSTOM
+    ) {
+      updatePayload.$unset = { customInterval: 1 };
+    }
+
     return this.todoModel
-      .findByIdAndUpdate(id, updateTodoDto, { new: true })
+      .findByIdAndUpdate(id, updatePayload, { new: true })
       .exec();
   }
 

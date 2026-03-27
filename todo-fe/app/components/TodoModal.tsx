@@ -25,7 +25,7 @@ interface TodoModalProps {
   open: boolean
   editingTodo: TodoItem | null
   onCancel: () => void
-  onSuccess: (mode: "create" | "edit") => void
+  onSuccess: () => void
 }
 
 export function TodoModal({
@@ -57,7 +57,7 @@ export function TodoModal({
     onSuccess: res => {
       if (res.success) {
         messageApi.success("Todo created successfully!")
-        onSuccess("create")
+        onSuccess()
       }
     },
     onError: error => {
@@ -71,7 +71,7 @@ export function TodoModal({
     onSuccess: res => {
       if (res.success) {
         messageApi.success("Todo updated successfully!")
-        onSuccess("edit")
+        onSuccess()
       }
     },
     onError: error => {
@@ -106,6 +106,7 @@ export function TodoModal({
           createTodoMutation.isPending || updateTodoMutation.isPending
         }
         centered
+        destroyOnHidden
         title={editingTodo ? "Edit Todo" : "Add Todo"}
         open={open}
         onOk={() => todoForm.submit()}
