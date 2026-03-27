@@ -3,7 +3,7 @@ import { priorityOptions, recurrenceOptions, statusOptions } from "./options"
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
-  ExclamationCircleOutlined,
+  SaveOutlined,
   SyncOutlined,
 } from "@ant-design/icons"
 
@@ -11,7 +11,7 @@ const mapStatus: Record<string, { icon: React.ReactNode; color: string }> = {
   NOT_STARTED: { icon: <ClockCircleOutlined />, color: "default" },
   IN_PROGRESS: { icon: <SyncOutlined spin />, color: "processing" },
   COMPLETED: { icon: <CheckCircleOutlined />, color: "success" },
-  ARCHIVED: { icon: <ExclamationCircleOutlined />, color: "warning" },
+  ARCHIVED: { icon: <SaveOutlined />, color: "warning" },
 }
 
 const mapPriority: Record<string, string> = {
@@ -40,7 +40,7 @@ export const columns = [
         <Tag
           icon={mapStatus[status].icon}
           color={mapStatus[status].color}
-          variant={"outlined"}
+          variant={"filled"}
         >
           {statusOptions.find(option => option.value === status)?.label}
         </Tag>
