@@ -7,7 +7,7 @@ import {
   IsString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TodoPriority, TodoStatus } from '../entities/todo.entity';
+import { TodoPriority, TodoStatus } from './todo.dto';
 
 export enum DependencyStatus {
   BLOCKED = 'BLOCKED',
