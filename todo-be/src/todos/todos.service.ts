@@ -5,8 +5,7 @@ import { Todo } from './schemas/todo.schema';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
 import { SearchTodoDto, SortOrder } from './dto/search-todo.dto';
-import { Recurrence } from './entities/todo.entity';
-import { TodoTreeNode } from './types';
+import { TodoTreeNode, Recurrence } from './types';
 
 @Injectable()
 export class TodosService {
