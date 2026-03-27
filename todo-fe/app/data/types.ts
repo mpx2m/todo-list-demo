@@ -21,6 +21,11 @@ export enum Recurrence {
   CUSTOM = "CUSTOM",
 }
 
+export enum DependencyStatus {
+  BLOCKED = "BLOCKED",
+  UNBLOCKED = "UNBLOCKED",
+}
+
 export interface CreateFormValue {
   name: string
   description?: string
@@ -41,7 +46,7 @@ export interface SearchFormValue {
   status?: Status
   priority?: Priority
   dueDateRange?: [Dayjs, Dayjs]
-  dependencyStatus?: "BLOCKED" | "UNBLOCKED"
+  dependencyStatus?: DependencyStatus
   sortBy: "dueDate" | "priority" | "status" | "name"
   sortOrder: "ASC" | "DESC"
   page: number
@@ -62,6 +67,7 @@ export interface TodoItem {
   priority: Priority
   status: Status
   dueDate?: string
+  dependencyStatus: DependencyStatus
   recurrence: Recurrence
   customInterval?: number
   children: TodoItem[]

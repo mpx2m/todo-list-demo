@@ -5,7 +5,7 @@ import { Todo } from './schemas/todo.schema';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
 import { SearchTodoDto, SortOrder } from './dto/search-todo.dto';
-import { TodoTreeNode, Recurrence } from './types';
+import { TodoStatus, TodoTreeNode, Recurrence } from './types';
 
 @Injectable()
 export class TodosService {
@@ -40,12 +40,35 @@ export class TodosService {
       }
 
       const normalizedParentId = String(parent._id);
-      payload.path = parent.path
+      const parentPath = parent.path
         ? `${parent.path}:${normalizedParentId}`
         : normalizedParentId;
+      payload.path = parentPath;
       payload.depth = (parent.depth ?? 0) + 1;
 
       const [createdTodo] = await this.todoModel.create([payload], { session });
+
+      const childStatus: TodoStatus =
+        (payload.status as TodoStatus | undefined) ?? TodoStatus.NOT_STARTED;
+      if (
+        childStatus === TodoStatus.NOT_STARTED ||
+        childStatus === TodoStatus.IN_PROGRESS
+      ) {
+        const ancestorIds: string[] = parentPath.split(':').filter(Boolean);
+        await this.todoModel
+          .updateMany(
+            {
+              _id: { $in: ancestorIds },
+              deletedAt: null,
+            },
+            {
+              $set: { status: childStatus },
+            },
+            { session },
+          )
+          .exec();
+      }
+
       await session.commitTransaction();
       return createdTodo;
     } catch (error) {

@@ -1,13 +1,18 @@
 import { Tag, Button, Divider, Tooltip, Popconfirm, Badge } from "antd"
 import type { ColumnsType } from "antd/es/table"
-import { priorityOptions, recurrenceOptions, statusOptions } from "./options"
+import {
+  priorityOptions,
+  recurrenceOptions,
+  statusOptions,
+  dependencyStatusOptions,
+} from "./options"
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   SaveOutlined,
   SyncOutlined,
 } from "@ant-design/icons"
-import { TodoItem, Status } from "../data/types"
+import { TodoItem, DependencyStatus } from "../data/types"
 
 const mapStatus: Record<string, { icon: React.ReactNode; color: string }> = {
   NOT_STARTED: { icon: <ClockCircleOutlined />, color: "default" },
@@ -20,23 +25,6 @@ const mapPriority: Record<string, string> = {
   LOW: "default",
   MEDIUM: "blue",
   HIGH: "red",
-}
-
-const hasBlockedDescendant = (children: TodoItem[] = []): boolean => {
-  for (const child of children) {
-    if (
-      child.status === Status.NOT_STARTED ||
-      child.status === Status.IN_PROGRESS
-    ) {
-      return true
-    }
-
-    if (hasBlockedDescendant(child.children || [])) {
-      return true
-    }
-  }
-
-  return false
 }
 
 export const columns = ({
@@ -92,17 +80,25 @@ export const columns = ({
   },
   {
     title: "Dependency",
-    key: "dependency",
-    render: (_, record) => {
-      return hasBlockedDescendant(record.children) ? (
+    dataIndex: "dependencyStatus",
+    key: "dependencyStatus",
+    render: dependencyStatus => {
+      return (
         <>
-          <Badge status="error" />
-          <span className="ml-2">Blocked</span>
-        </>
-      ) : (
-        <>
-          <Badge status="processing" />
-          <span className="ml-2">Unblocked</span>
+          <Badge
+            status={
+              dependencyStatus === DependencyStatus.BLOCKED
+                ? "error"
+                : "processing"
+            }
+          />
+          <span className="ml-2">
+            {
+              dependencyStatusOptions.find(
+                option => option.value === dependencyStatus,
+              )?.label
+            }
+          </span>
         </>
       )
     },

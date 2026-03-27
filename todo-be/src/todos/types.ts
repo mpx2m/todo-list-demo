@@ -19,6 +19,11 @@ export enum Recurrence {
   CUSTOM = 'CUSTOM',
 }
 
+export enum DependencyStatus {
+  BLOCKED = 'BLOCKED',
+  UNBLOCKED = 'UNBLOCKED',
+}
+
 export interface TodoTreeNode {
   _id: string;
   children: TodoTreeNode[];
