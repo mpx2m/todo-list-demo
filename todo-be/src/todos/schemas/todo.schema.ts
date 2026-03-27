@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import { TodoStatus, TodoPriority, Recurrence } from '../entities/todo.entity';
+import { TodoStatus, TodoPriority, Recurrence } from '../types';
 
 export type TodoDocument = HydratedDocument<Todo>;
 
