@@ -1,42 +1,20 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import dayjs from "dayjs"
-import {
-  Input,
-  InputNumber,
-  message,
-  Modal,
-  Radio,
-  Select,
-  Table,
-  Alert,
-  Button,
-  Form,
-  DatePicker,
-} from "antd"
+import { useState } from "react"
+import { Input, Select, Table, Alert, Button, Form, DatePicker } from "antd"
 import { useQueryClient } from "@tanstack/react-query"
 import { EditOutlined, SearchOutlined } from "@ant-design/icons"
-import { useQuery, useMutation } from "@tanstack/react-query"
-import {
-  Create,
-  CreateFormValue,
-  SearchFormValue,
-  TodoItem,
-} from "./data/types"
+import { useQuery } from "@tanstack/react-query"
+import { SearchFormValue, TodoItem } from "./data/types"
 import { todoApi } from "./apis"
 import { columns } from "./data/columns"
-import {
-  statusOptions,
-  priorityOptions,
-  recurrenceOptions,
-} from "./data/options"
+import { statusOptions, priorityOptions } from "./data/options"
+import { TodoModal } from "./components/TodoModal"
 
 const { RangePicker } = DatePicker
 
 export default function Home() {
   const queryClient = useQueryClient()
-  const [messageApi, contextHolder] = message.useMessage()
   const [searchForm] = Form.useForm()
   const [searchFormValue, setSearchFormValue] = useState<SearchFormValue>({
     sortBy: "dueDate",
@@ -44,6 +22,8 @@ export default function Home() {
     page: 1,
     limit: 10,
   })
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null)
 
   const buildSearchParams = (value: SearchFormValue) => ({
     ...value,
@@ -67,102 +47,13 @@ export default function Home() {
     }))
   }
 
-  // modal
-  const [todoForm] = Form.useForm()
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null)
-
-  useEffect(() => {
-    if (!isModalOpen) {
-      return
-    }
-
-    if (editingTodo) {
-      todoForm.setFieldsValue({
-        ...editingTodo,
-        dueDate: editingTodo.dueDate ? dayjs(editingTodo.dueDate) : undefined,
-      })
-    } else {
-      todoForm.resetFields()
-    }
-  }, [isModalOpen, editingTodo, todoForm])
-
-  const refreshTable = () => {
-    if (editingTodo || searchFormValue.page === 1) {
-      queryClient.invalidateQueries({ queryKey: ["todos"] })
-    } else {
-      setSearchFormValue(prev => ({ ...prev, page: 1 }))
-    }
-  }
-
-  const createTodoMutation = useMutation({
-    mutationFn: todoApi.createTodo,
-    onSuccess: res => {
-      if (res.success) {
-        messageApi.success("Todo created successfully!")
-        setIsModalOpen(false)
-        refreshTable()
-      }
-    },
-    onError: error => {
-      messageApi.error(error.message || "Request failed")
-    },
-  })
-
-  const updateTodoMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Create> }) =>
-      todoApi.updateTodo(id, data),
-    onSuccess: res => {
-      if (res.success) {
-        messageApi.success("Todo updated successfully!")
-        setIsModalOpen(false)
-        refreshTable()
-      }
-    },
-    onError: error => {
-      messageApi.error(error.message || "Request failed")
-    },
-  })
-
-  const onFinishCreate = (values: CreateFormValue) => {
-    const payload = {
-      ...values,
-      dueDate: values.dueDate?.toISOString(),
-      customInterval:
-        values.recurrence === "CUSTOM" ? values.customInterval : undefined,
-    }
-
-    if (editingTodo) {
-      updateTodoMutation.mutate({
-        id: editingTodo._id,
-        data: payload,
-      })
-    } else {
-      createTodoMutation.mutate(payload)
-    }
-  }
-
-  const showModal = () => {
-    setEditingTodo(null)
-    setIsModalOpen(true)
-  }
-
-  const showEditModal = (record: TodoItem) => {
-    setEditingTodo(record)
-    setIsModalOpen(true)
-  }
-
-  const handleCancel = () => {
+  const modalSuccess = () => {
     setIsModalOpen(false)
-  }
-
-  const handleOk = () => {
-    todoForm.submit()
+    queryClient.invalidateQueries({ queryKey: ["todos"] })
   }
 
   return (
     <main className="p-6">
-      {contextHolder}
       <Form
         layout={"inline"}
         className="gap-3"
@@ -239,7 +130,14 @@ export default function Home() {
           </Button>
         </Form.Item>
         <Form.Item>
-          <Button type="primary" icon={<EditOutlined />} onClick={showModal}>
+          <Button
+            type="primary"
+            icon={<EditOutlined />}
+            onClick={() => {
+              setEditingTodo(null)
+              setIsModalOpen(true)
+            }}
+          >
             Add Todo
           </Button>
         </Form.Item>
@@ -256,7 +154,12 @@ export default function Home() {
         loading={isLoading}
         dataSource={(data?.data?.results || []) as TodoItem[]}
         rowKey={(record: TodoItem) => record._id}
-        columns={columns({ onEdit: showEditModal })}
+        columns={columns({
+          onEdit: record => {
+            setEditingTodo(record)
+            setIsModalOpen(true)
+          },
+        })}
         className="mt-3"
         pagination={{
           showTotal: total => `Total ${total} items`,
@@ -271,95 +174,12 @@ export default function Home() {
           },
         }}
       />
-      <Modal
-        confirmLoading={
-          createTodoMutation.isPending || updateTodoMutation.isPending
-        }
-        centered
-        title={editingTodo ? "Edit Todo" : "Add Todo"}
+      <TodoModal
         open={isModalOpen}
-        onOk={handleOk}
-        onCancel={handleCancel}
-      >
-        <Form
-          layout={"horizontal"}
-          labelCol={{ span: 5 }}
-          wrapperCol={{ span: 17 }}
-          form={todoForm}
-          initialValues={{
-            layout: "horizontal",
-            status: "NOT_STARTED",
-            priority: "LOW",
-            recurrence: "NONE",
-          }}
-          onFinish={onFinishCreate}
-        >
-          <Form.Item
-            label="Name"
-            name="name"
-            rules={[{ required: true, message: "Please input your name" }]}
-          >
-            <Input allowClear placeholder="name" />
-          </Form.Item>
-          <Form.Item label="Description" name="description">
-            <Input.TextArea
-              allowClear
-              placeholder="Description"
-              rows={2}
-              style={{ resize: "none" }}
-            />
-          </Form.Item>
-          <Form.Item label="Status" name="status">
-            <Select placeholder="Status" options={statusOptions} />
-          </Form.Item>
-          <Form.Item label="Priority" name="priority">
-            <Select placeholder="Priority" options={priorityOptions} />
-          </Form.Item>
-          <Form.Item name="dueDate" label="Due date">
-            <DatePicker />
-          </Form.Item>
-          <Form.Item label="Recurrence" name="recurrence">
-            <Radio.Group>
-              {recurrenceOptions.map(option => (
-                <Radio key={option.value} value={option.value}>
-                  {option.label}
-                </Radio>
-              ))}
-            </Radio.Group>
-          </Form.Item>
-
-          {/* Custom Interval */}
-          <Form.Item
-            shouldUpdate={(prevValues, currentValues) =>
-              prevValues.recurrence !== currentValues.recurrence
-            }
-            noStyle
-          >
-            {({ getFieldValue }) =>
-              getFieldValue("recurrence") === "CUSTOM" ? (
-                <Form.Item
-                  label="Custom"
-                  name="customInterval"
-                  rules={[
-                    {
-                      required: true,
-                      message: "Please input custom interval",
-                    },
-                  ]}
-                >
-                  <InputNumber
-                    min={1}
-                    max={999}
-                    suffix="day(s)"
-                    style={{ width: "100%" }}
-                    placeholder="Custom interval"
-                  />
-                </Form.Item>
-              ) : null
-            }
-          </Form.Item>
-        </Form>
-      </Modal>
+        editingTodo={editingTodo}
+        onCancel={() => setIsModalOpen(false)}
+        onSuccess={modalSuccess}
+      />
     </main>
   )
 }
