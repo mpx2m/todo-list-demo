@@ -34,6 +34,8 @@ export class Todo {
   @IsNotEmpty()
   name: string;
 
+  @IsOptional()
+  @IsString()
   description?: string;
 
   @IsOptional()
