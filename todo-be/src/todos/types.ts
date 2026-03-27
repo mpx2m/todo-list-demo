@@ -26,5 +26,5 @@ export enum DependencyStatus {
 
 export interface TodoTreeNode {
   _id: string;
-  children: TodoTreeNode[];
+  children?: TodoTreeNode[];
 }

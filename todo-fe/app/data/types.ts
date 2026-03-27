@@ -70,6 +70,6 @@ export interface TodoItem {
   dependencyStatus: DependencyStatus
   recurrence: Recurrence
   customInterval?: number
-  children: TodoItem[]
+  children?: TodoItem[]
   createdAt: string
 }

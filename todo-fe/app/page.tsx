@@ -109,13 +109,6 @@ export default function Home() {
         indentSize={40}
         expandable={{
           expandedRowKeys: autoExpandedRowKeys,
-          expandIcon: () => {
-            return (
-              <span className="mr-2">
-                <MinusCircleTwoTone />
-              </span>
-            )
-          },
         }}
         size="small"
         bordered

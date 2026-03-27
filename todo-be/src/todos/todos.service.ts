@@ -95,6 +95,7 @@ export class TodosService {
       dueDateEnd,
       status,
       priority,
+      dependencyStatus,
       sortBy,
       sortOrder,
       page,
@@ -110,6 +111,9 @@ export class TodosService {
     }
     if (priority) {
       filter.priority = priority;
+    }
+    if (dependencyStatus) {
+      filter.dependencyStatus = dependencyStatus;
     }
     if (name?.trim()) {
       filter.$text = { $search: name.trim() };
@@ -168,7 +172,6 @@ export class TodosService {
       nodeMap.set(String(todo._id), {
         ...todo,
         _id: String(todo._id),
-        children: [],
       });
     }
 
@@ -178,10 +181,13 @@ export class TodosService {
       const parentId = pathSegments[pathSegments.length - 1];
       const parentNode = nodeMap.get(parentId)!;
       const currentNode = nodeMap.get(currentId)!;
+      parentNode.children ??= [];
       parentNode.children.push(currentNode);
     }
 
-    const resultsWithChildren = rootIds.map((id) => nodeMap.get(id));
+    const resultsWithChildren = rootIds
+      .map((id) => nodeMap.get(id))
+      .filter((node): node is TodoTreeNode => node !== undefined);
 
     return {
       total,
