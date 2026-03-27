@@ -5,7 +5,12 @@ import { Todo } from './schemas/todo.schema';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
 import { SearchTodoDto, SortOrder } from './dto/search-todo.dto';
-import { TodoStatus, TodoTreeNode, Recurrence } from './types';
+import {
+  DependencyStatus,
+  TodoStatus,
+  TodoTreeNode,
+  Recurrence,
+} from './types';
 
 @Injectable()
 export class TodosService {
@@ -17,6 +22,7 @@ export class TodosService {
       ...rest,
       path: null,
       depth: 0,
+      dependencyStatus: DependencyStatus.UNBLOCKED,
     };
 
     if (!parentId) {
@@ -62,7 +68,10 @@ export class TodosService {
               deletedAt: null,
             },
             {
-              $set: { status: childStatus },
+              $set: {
+                status: childStatus,
+                dependencyStatus: DependencyStatus.BLOCKED,
+              },
             },
             { session },
           )
