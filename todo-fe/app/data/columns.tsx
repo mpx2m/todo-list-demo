@@ -1,4 +1,4 @@
-import { Tag, Button, Divider } from "antd"
+import { Tag, Button, Divider, Tooltip } from "antd"
 import type { ColumnsType } from "antd/es/table"
 import { priorityOptions, recurrenceOptions, statusOptions } from "./options"
 import {
@@ -68,14 +68,6 @@ export const columns = ({
     },
   },
   {
-    title: "Created At",
-    dataIndex: "createdAt",
-    key: "createdAt",
-    render: (createdAt: string) => {
-      return new Date(createdAt).toLocaleString()
-    },
-  },
-  {
     title: "Due date",
     dataIndex: "dueDate",
     key: "dueDate",
@@ -109,7 +101,22 @@ export const columns = ({
     key: "action",
     render: (_, record) => (
       <>
-        <Button color="primary" variant="text" onClick={() => onAddChild(record)}>
+        <Tooltip
+          title={
+            <>
+              Created At:
+              <div>{new Date(record.createdAt).toLocaleString()}</div>
+            </>
+          }
+        >
+          <a>Details</a>
+        </Tooltip>
+        <Divider orientation="vertical" />
+        <Button
+          color="primary"
+          variant="text"
+          onClick={() => onAddChild(record)}
+        >
           Add Todo
         </Button>
         <Divider orientation="vertical" />
