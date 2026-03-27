@@ -84,7 +84,7 @@ export const columns = ({
     key: "dependencyStatus",
     render: (dependencyStatus, record) => {
       return (
-        <span style={{ display: "inline-flex", marginLeft: record.depth * 16 }}>
+        <span style={{ display: "inline-flex", marginLeft: record.depth * 20 }}>
           <Badge
             status={
               dependencyStatus === DependencyStatus.BLOCKED
