@@ -79,10 +79,6 @@ export class TodosService {
     }
   }
 
-  async findAll(): Promise<Todo[]> {
-    return this.todoModel.find({ deletedAt: null }).exec();
-  }
-
   async search(query: SearchTodoDto) {
     const {
       name,
@@ -186,10 +182,6 @@ export class TodosService {
     };
   }
 
-  async findOne(id: string): Promise<Todo | null> {
-    return this.todoModel.findOne({ _id: id, deletedAt: null }).exec();
-  }
-
   async update(id: string, updateTodoDto: UpdateTodoDto): Promise<Todo | null> {
     const setPayload = Object.fromEntries(
       Object.entries(updateTodoDto).filter(([, v]) => v !== undefined),
@@ -252,5 +244,13 @@ export class TodosService {
     } finally {
       await session.endSession();
     }
+  }
+
+  async findAll(): Promise<Todo[]> {
+    return this.todoModel.find({ deletedAt: null }).exec();
+  }
+
+  async findOne(id: string): Promise<Todo | null> {
+    return this.todoModel.findOne({ _id: id, deletedAt: null }).exec();
   }
 }
