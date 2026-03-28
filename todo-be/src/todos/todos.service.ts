@@ -380,27 +380,39 @@ export class TodosService {
     }
   }
 
-  async removeDependency(dependentId: string, prerequisiteId: string) {
+  async removeDependencies(dependentId: string, prerequisiteIds: string[]) {
     const session = await this.todoModel.db.startSession();
     session.startTransaction();
 
     try {
-      const edge = await this.todoDependencyModel
-        .findOneAndUpdate(
+      const uniquePrerequisiteIds = [...new Set(prerequisiteIds)];
+      if (uniquePrerequisiteIds.length === 0) {
+        await session.commitTransaction();
+        return {
+          dependentId,
+          removed: 0,
+        };
+      }
+
+      const result = await this.todoDependencyModel
+        .updateMany(
           {
             dependentId,
-            prerequisiteId,
+            prerequisiteId: { $in: uniquePrerequisiteIds },
             deletedAt: null,
           },
           {
             $set: { deletedAt: new Date() },
           },
-          { returnDocument: 'after', session },
+          { session },
         )
         .exec();
 
       await session.commitTransaction();
-      return { removed: Boolean(edge) };
+      return {
+        dependentId,
+        removed: result.modifiedCount ?? 0,
+      };
     } catch (error) {
       await session.abortTransaction();
       throw error;
