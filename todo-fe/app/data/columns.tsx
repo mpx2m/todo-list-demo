@@ -12,7 +12,7 @@ import {
   SaveOutlined,
   SyncOutlined,
 } from "@ant-design/icons"
-import { TodoItem, DependencyStatus } from "../data/types"
+import { TodoItem, DependencyStatus, Recurrence } from "../data/types"
 
 const mapStatus: Record<string, { icon: React.ReactNode; color: string }> = {
   NOT_STARTED: { icon: <ClockCircleOutlined />, color: "default" },
@@ -82,9 +82,9 @@ export const columns = ({
     title: "Dependency",
     dataIndex: "dependencyStatus",
     key: "dependencyStatus",
-    render: (dependencyStatus, record) => {
+    render: dependencyStatus => {
       return (
-        <span style={{ display: "inline-flex", marginLeft: record.depth * 20 }}>
+        <span>
           <Badge
             status={
               dependencyStatus === DependencyStatus.BLOCKED
@@ -118,29 +118,20 @@ export const columns = ({
     title: "Recurrence",
     dataIndex: "recurrence",
     key: "recurrence",
-    render: (recurrence: string) => {
-      if (recurrence === "NONE") {
+    render: recurrence => {
+      if (!recurrence) {
         return null
       }
 
-      return recurrenceOptions.find(option => option.value === recurrence)
-        ?.label
-    },
-  },
-  {
-    title: "Custom Interval",
-    dataIndex: "customInterval",
-    key: "customInterval",
-    render: customInterval => {
-      if (!customInterval) {
-        return null
+      const label = recurrenceOptions.find(
+        option => option.value === recurrence.type,
+      )?.label
+
+      if (recurrence.type !== Recurrence.CUSTOM) {
+        return label
       }
 
-      if (customInterval === 1) {
-        return "1 day"
-      } else {
-        return `${customInterval} days`
-      }
+      return `${label} (${recurrence.interval} ${recurrence.unit?.toLowerCase()})`
     },
   },
   {

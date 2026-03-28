@@ -13,9 +13,16 @@ import {
   Select,
 } from "antd"
 import { useMutation } from "@tanstack/react-query"
-import { Create, CreateFormValue, TodoItem } from "../data/types"
+import {
+  Create,
+  CreateFormValue,
+  TodoItem,
+  Recurrence,
+  RecurrenceUnit,
+} from "../data/types"
 import {
   recurrenceOptions,
+  recurrenceUnitOptions,
   priorityOptions,
   statusOptions,
 } from "../data/options"
@@ -24,7 +31,6 @@ import { todoApi } from "../apis"
 interface TodoModalProps {
   open: boolean
   editingTodo?: TodoItem
-  parentId?: string
   onCancel: () => void
   onSuccess: () => void
 }
@@ -32,7 +38,6 @@ interface TodoModalProps {
 export function TodoModal({
   open,
   editingTodo,
-  parentId,
   onCancel,
   onSuccess,
 }: TodoModalProps) {
@@ -48,6 +53,9 @@ export function TodoModal({
       todoForm.setFieldsValue({
         ...editingTodo,
         dueDate: editingTodo.dueDate ? dayjs(editingTodo.dueDate) : undefined,
+        recurrence: editingTodo.recurrence?.type,
+        customInterval: editingTodo.recurrence?.interval,
+        customUnit: editingTodo.recurrence?.unit ?? RecurrenceUnit.DAY,
       })
     } else {
       todoForm.resetFields()
@@ -82,12 +90,25 @@ export function TodoModal({
   })
 
   const onFinish = (values: CreateFormValue) => {
+    const recurrence = !values.recurrence
+      ? undefined
+      : values.recurrence === Recurrence.CUSTOM
+        ? {
+            type: Recurrence.CUSTOM,
+            interval: values.customInterval,
+            unit: values.customUnit ?? RecurrenceUnit.DAY,
+          }
+        : {
+            type: values.recurrence,
+          }
+
     const payload: Create = {
-      ...values,
+      name: values.name,
+      description: values.description,
+      priority: values.priority,
+      status: values.status,
       dueDate: values.dueDate?.toISOString(),
-      parentId: !editingTodo ? parentId || undefined : undefined,
-      customInterval:
-        values.recurrence === "CUSTOM" ? values.customInterval : undefined,
+      recurrence,
     }
 
     if (editingTodo) {
@@ -121,10 +142,9 @@ export function TodoModal({
           wrapperCol={{ span: 17 }}
           form={todoForm}
           initialValues={{
-            layout: "horizontal",
             status: "NOT_STARTED",
             priority: "LOW",
-            recurrence: "NONE",
+            customUnit: RecurrenceUnit.DAY,
           }}
           onFinish={onFinish}
         >
@@ -147,19 +167,17 @@ export function TodoModal({
             <Select placeholder="Status" options={statusOptions} />
           </Form.Item>
           <Form.Item label="Priority" name="priority">
-            <Select placeholder="Priority" options={priorityOptions} />
+            <Radio.Group optionType="button" options={priorityOptions} />
           </Form.Item>
           <Form.Item name="dueDate" label="Due date">
             <DatePicker />
           </Form.Item>
           <Form.Item label="Recurrence" name="recurrence">
-            <Radio.Group>
-              {recurrenceOptions.map(option => (
-                <Radio key={option.value} value={option.value}>
-                  {option.label}
-                </Radio>
-              ))}
-            </Radio.Group>
+            <Select
+              allowClear
+              placeholder="No recurrence"
+              options={recurrenceOptions}
+            />
           </Form.Item>
           <Form.Item
             shouldUpdate={(prevValues, currentValues) =>
@@ -168,25 +186,32 @@ export function TodoModal({
             noStyle
           >
             {({ getFieldValue }) =>
-              getFieldValue("recurrence") === "CUSTOM" ? (
-                <Form.Item
-                  label="Custom"
-                  name="customInterval"
-                  rules={[
-                    {
-                      required: true,
-                      message: "Please input custom interval",
-                    },
-                  ]}
-                >
-                  <InputNumber
-                    min={1}
-                    max={999}
-                    suffix="day(s)"
-                    style={{ width: "100%" }}
-                    placeholder="Custom interval"
-                  />
-                </Form.Item>
+              getFieldValue("recurrence") === Recurrence.CUSTOM ? (
+                <>
+                  <Form.Item
+                    label="Interval"
+                    name="customInterval"
+                    rules={[
+                      {
+                        required: true,
+                        message: "Please input custom interval",
+                      },
+                    ]}
+                  >
+                    <InputNumber
+                      min={1}
+                      max={999}
+                      style={{ width: "100%" }}
+                      placeholder="Custom interval"
+                    />
+                  </Form.Item>
+                  <Form.Item label="Unit" name="customUnit">
+                    <Radio.Group
+                      optionType="button"
+                      options={recurrenceUnitOptions}
+                    />
+                  </Form.Item>
+                </>
               ) : null
             }
           </Form.Item>

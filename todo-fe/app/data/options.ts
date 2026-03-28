@@ -12,11 +12,16 @@ export const priorityOptions = [
 ]
 
 export const recurrenceOptions = [
-  { value: "NONE", label: "None" },
   { value: "DAILY", label: "Daily" },
   { value: "WEEKLY", label: "Weekly" },
   { value: "MONTHLY", label: "Monthly" },
   { value: "CUSTOM", label: "Custom" },
+]
+
+export const recurrenceUnitOptions = [
+  { value: "DAY", label: "Day" },
+  { value: "WEEK", label: "Week" },
+  { value: "MONTH", label: "Month" },
 ]
 
 export const dependencyStatusOptions = [

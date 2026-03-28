@@ -27,15 +27,16 @@ export class Todo {
       type: {
         type: String,
         enum: Object.values(Recurrence),
-        required: true,
       },
       interval: {
         type: Number,
         min: 1,
+        optional: true,
       },
       unit: {
         type: String,
         enum: Object.values(RecurrenceUnit),
+        optional: true,
       },
     }),
   )

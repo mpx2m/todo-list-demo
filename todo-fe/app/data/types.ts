@@ -14,11 +14,16 @@ export enum Priority {
 }
 
 export enum Recurrence {
-  NONE = "NONE",
   DAILY = "DAILY",
   WEEKLY = "WEEKLY",
   MONTHLY = "MONTHLY",
   CUSTOM = "CUSTOM",
+}
+
+export enum RecurrenceUnit {
+  DAY = "DAY",
+  WEEK = "WEEK",
+  MONTH = "MONTH",
 }
 
 export enum DependencyStatus {
@@ -32,13 +37,23 @@ export interface CreateFormValue {
   priority: string
   status: string
   dueDate?: Dayjs
-  recurrence: Recurrence
+  recurrence?: Recurrence
   customInterval?: number
+  customUnit?: RecurrenceUnit
 }
 
-export type Create = Omit<CreateFormValue, "dueDate"> & {
+export interface RecurrenceConfig {
+  type: Recurrence
+  interval?: number
+  unit?: RecurrenceUnit
+}
+
+export type Create = Omit<
+  CreateFormValue,
+  "dueDate" | "recurrence" | "customInterval" | "customUnit"
+> & {
   dueDate?: string
-  parentId?: string
+  recurrence?: RecurrenceConfig
 }
 
 export interface SearchFormValue {
@@ -60,16 +75,11 @@ export type Search = Omit<SearchFormValue, "dueDateRange"> & {
 
 export interface TodoItem {
   _id: string
-  path?: string
-  depth: number
   name: string
   description?: string
   priority: Priority
   status: Status
   dueDate?: string
-  dependencyStatus: DependencyStatus
-  recurrence: Recurrence
-  customInterval?: number
-  children?: TodoItem[]
+  recurrence?: RecurrenceConfig
   createdAt: string
 }
