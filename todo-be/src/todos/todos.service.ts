@@ -495,7 +495,9 @@ export class TodosService {
     }
 
     if (nextStatus === TodoStatus.ARCHIVED) {
+      delete setPayload.dueDate;
       delete setPayload.recurrence;
+      unsetPayload.dueDate = 1;
       unsetPayload.recurrence = 1;
     } else if (updateTodoDto.recurrence) {
       setPayload.recurrence = this.normalizeRecurrence(
