@@ -129,7 +129,7 @@ export const columns = ({
         return label
       }
 
-      return `${label} (${recurrence.interval} ${recurrence.unit?.toLowerCase()})`
+      return `${label} (${recurrence.interval} ${recurrence.unit?.toLowerCase() + "(s)"})`
     },
   },
   {

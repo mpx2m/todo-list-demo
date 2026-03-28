@@ -489,36 +489,37 @@ export class TodosService {
   private buildUpdatePayload(
     updateTodoDto: UpdateTodoDto,
   ): Record<string, unknown> {
+    const nullableFields = ['description', 'dueDate', 'recurrence'] as const;
     const setPayload = Object.fromEntries(
       Object.entries(updateTodoDto).filter(
         ([key, value]) =>
           value !== undefined &&
           value !== null &&
-          key !== 'dueDate' &&
-          key !== 'recurrence' &&
-          key !== 'description',
+          !nullableFields.includes(key as (typeof nullableFields)[number]),
       ),
     );
     const unsetPayload: Record<string, 1> = {};
 
-    if (updateTodoDto.description === null) {
-      unsetPayload.description = 1;
-    } else if (updateTodoDto.description !== undefined) {
-      setPayload.description = updateTodoDto.description;
-    }
+    for (const field of nullableFields) {
+      const value = updateTodoDto[field];
 
-    if (updateTodoDto.dueDate === null) {
-      unsetPayload.dueDate = 1;
-    } else if (updateTodoDto.dueDate !== undefined) {
-      setPayload.dueDate = updateTodoDto.dueDate;
-    }
+      if (value === undefined) {
+        continue;
+      }
 
-    if (updateTodoDto.recurrence === null) {
-      unsetPayload.recurrence = 1;
-    } else if (updateTodoDto.recurrence !== undefined) {
-      setPayload.recurrence = this.normalizeRecurrence(
-        updateTodoDto.recurrence,
-      );
+      if (value === null) {
+        unsetPayload[field] = 1;
+        continue;
+      }
+
+      if (field === 'recurrence') {
+        setPayload.recurrence = this.normalizeRecurrence(
+          updateTodoDto.recurrence as RecurrenceConfig,
+        );
+        continue;
+      }
+
+      setPayload[field] = value;
     }
 
     const updatePayload: Record<string, unknown> = {};
