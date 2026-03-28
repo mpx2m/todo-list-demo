@@ -11,6 +11,11 @@ export enum TodoPriority {
   HIGH = 'HIGH',
 }
 
+export enum DependencyStatus {
+  BLOCKED = 'BLOCKED',
+  UNBLOCKED = 'UNBLOCKED',
+}
+
 export enum Recurrence {
   DAILY = 'DAILY',
   WEEKLY = 'WEEKLY',

@@ -7,7 +7,7 @@ import {
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TodoPriority, TodoStatus } from '../types';
+import { DependencyStatus, TodoPriority, TodoStatus } from '../types';
 
 export enum SortBy {
   DUE_DATE = 'dueDate',
@@ -41,6 +41,10 @@ export class SearchTodoDto {
   @IsOptional()
   @IsDateString()
   dueDateEnd?: string;
+
+  @IsOptional()
+  @IsEnum(DependencyStatus)
+  dependencyStatus?: DependencyStatus;
 
   @IsEnum(SortBy)
   sortBy: SortBy = SortBy.DUE_DATE;
