@@ -248,6 +248,7 @@ export class TodosService {
     session.startTransaction();
 
     try {
+      const todoObjectId = new Types.ObjectId(id);
       const todo = await this.todoModel
         .findOne({ _id: id, deletedAt: null })
         .session(session)
@@ -271,7 +272,10 @@ export class TodosService {
         .updateMany(
           {
             deletedAt: null,
-            $or: [{ prerequisiteId: id }, { dependentId: id }],
+            $or: [
+              { prerequisiteId: todoObjectId },
+              { dependentId: todoObjectId },
+            ],
           },
           { $set: { deletedAt: now } },
           { session },
@@ -307,6 +311,10 @@ export class TodosService {
       }
 
       const uniquePrerequisiteIds = [...new Set(prerequisiteIds)];
+      const dependentObjectId = new Types.ObjectId(dependentId);
+      const prerequisiteObjectIds = uniquePrerequisiteIds.map(
+        (id) => new Types.ObjectId(id),
+      );
       if (uniquePrerequisiteIds.some((id) => id === dependentId)) {
         throw new BadRequestException('Todo cannot depend on itself');
       }
@@ -341,8 +349,8 @@ export class TodosService {
 
       const existingEdges = await this.todoDependencyModel
         .find({
-          prerequisiteId: { $in: uniquePrerequisiteIds },
-          dependentId,
+          prerequisiteId: { $in: prerequisiteObjectIds },
+          dependentId: dependentObjectId,
           deletedAt: null,
         })
         .session(session)
@@ -353,14 +361,29 @@ export class TodosService {
       );
 
       const toCreate = uniquePrerequisiteIds
-        .filter((id) => !existingPrerequisiteSet.has(id))
-        .map((id) => ({
-          prerequisiteId: new Types.ObjectId(id),
-          dependentId: new Types.ObjectId(dependentId),
+        .map((id, index) => ({
+          id,
+          objectId: prerequisiteObjectIds[index],
+        }))
+        .filter(({ id }) => !existingPrerequisiteSet.has(id))
+        .map(({ objectId }) => ({
+          prerequisiteId: objectId,
+          dependentId: dependentObjectId,
         }));
 
       if (toCreate.length > 0) {
-        await this.todoDependencyModel.insertMany(toCreate, { session });
+        try {
+          await this.todoDependencyModel.insertMany(toCreate, { session });
+        } catch (error) {
+          if (this.isDuplicateKeyError(error)) {
+            await session.commitTransaction();
+            return {
+              dependentId,
+              created: 0,
+            };
+          }
+          throw error;
+        }
       }
 
       await session.commitTransaction();
@@ -382,6 +405,10 @@ export class TodosService {
 
     try {
       const uniquePrerequisiteIds = [...new Set(prerequisiteIds)];
+      const dependentObjectId = new Types.ObjectId(dependentId);
+      const prerequisiteObjectIds = uniquePrerequisiteIds.map(
+        (id) => new Types.ObjectId(id),
+      );
       if (uniquePrerequisiteIds.length === 0) {
         await session.commitTransaction();
         return {
@@ -393,8 +420,8 @@ export class TodosService {
       const result = await this.todoDependencyModel
         .updateMany(
           {
-            dependentId,
-            prerequisiteId: { $in: uniquePrerequisiteIds },
+            dependentId: dependentObjectId,
+            prerequisiteId: { $in: prerequisiteObjectIds },
             deletedAt: null,
           },
           {
@@ -418,8 +445,9 @@ export class TodosService {
   }
 
   async listDependencies(id: string) {
+    const todoObjectId = new Types.ObjectId(id);
     const edges = await this.todoDependencyModel
-      .find({ dependentId: id, deletedAt: null })
+      .find({ dependentId: todoObjectId, deletedAt: null })
       .lean()
       .exec();
     const prerequisiteIds = [
@@ -435,8 +463,9 @@ export class TodosService {
   }
 
   async listDependents(id: string) {
+    const todoObjectId = new Types.ObjectId(id);
     const edges = await this.todoDependencyModel
-      .find({ prerequisiteId: id, deletedAt: null })
+      .find({ prerequisiteId: todoObjectId, deletedAt: null })
       .lean()
       .exec();
     const dependentIds = [
@@ -639,6 +668,15 @@ export class TodosService {
     return updatePayload;
   }
 
+  private isDuplicateKeyError(error: unknown): boolean {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 11000
+    );
+  }
+
   private async createNextRecurringTodoIfNeeded(
     todoId: string,
     existing: Todo,
@@ -672,8 +710,9 @@ export class TodosService {
       { session },
     );
 
+    const todoObjectId = new Types.ObjectId(todoId);
     const activePrerequisiteEdges = await this.todoDependencyModel
-      .find({ dependentId: todoId, deletedAt: null })
+      .find({ dependentId: todoObjectId, deletedAt: null })
       .session(session)
       .lean()
       .exec();
@@ -693,8 +732,9 @@ export class TodosService {
     todoId: string,
     session: ClientSession,
   ): Promise<void> {
+    const todoObjectId = new Types.ObjectId(todoId);
     const edges = await this.todoDependencyModel
-      .find({ dependentId: todoId, deletedAt: null })
+      .find({ dependentId: todoObjectId, deletedAt: null })
       .session(session)
       .lean()
       .exec();

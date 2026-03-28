@@ -87,6 +87,7 @@ export interface TodoItem {
   description?: string
   priority: Priority
   status: Status
+  dependencyStatus?: DependencyStatus
   dueDate?: string
   recurrence?: RecurrenceConfig
   createdAt: string

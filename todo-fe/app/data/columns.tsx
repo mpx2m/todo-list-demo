@@ -14,14 +14,17 @@ import {
 } from "@ant-design/icons"
 import { TodoItem, Recurrence, DependencyStatus } from "../data/types"
 
-const mapStatus: Record<string, { icon: React.ReactNode; color: string }> = {
+export const mapStatus: Record<
+  string,
+  { icon: React.ReactNode; color: string }
+> = {
   NOT_STARTED: { icon: <ClockCircleOutlined />, color: "default" },
   IN_PROGRESS: { icon: <SyncOutlined spin />, color: "blue" },
   COMPLETED: { icon: <CheckCircleOutlined />, color: "green" },
   ARCHIVED: { icon: <SaveOutlined />, color: "geekblue" },
 }
 
-const mapPriority: Record<string, string> = {
+export const mapPriority: Record<string, string> = {
   LOW: "default",
   MEDIUM: "blue",
   HIGH: "red",
@@ -31,12 +34,14 @@ export const columns = ({
   onEdit,
   onDelete,
   onAddDependency,
+  onRemoveDependency,
   isDeleting,
   deletingId,
 }: {
   onEdit: (record: TodoItem) => void
   onDelete: (record: TodoItem) => void
   onAddDependency: (record: TodoItem) => void
+  onRemoveDependency: (record: TodoItem) => void
   isDeleting: boolean
   deletingId?: string
 }): ColumnsType<TodoItem> => [
@@ -147,18 +152,27 @@ export const columns = ({
             </>
           }
         >
-          <Button size="small" color="cyan" variant="text">
+          <Button size="small" color="default" variant="text">
             Details
           </Button>
         </Tooltip>
         <Divider orientation="vertical" />
         <Button
-          size="small"
           color="primary"
+          size="small"
           variant="text"
           onClick={() => onAddDependency(record)}
         >
           Add Totos
+        </Button>
+        <Divider orientation="vertical" />
+        <Button
+          color="primary"
+          size="small"
+          variant="text"
+          onClick={() => onRemoveDependency(record)}
+        >
+          Remove
         </Button>
         <Divider orientation="vertical" />
         <Button

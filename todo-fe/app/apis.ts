@@ -42,4 +42,15 @@ export const todoApi = {
         data,
       )
       .then(res => res.data),
+  listDependencies: (id: string) =>
+    axios
+      .get<ApiResponse<TodoItem[]>>(`${TODO_API}/todo/${id}/dependencies`)
+      .then(res => res.data),
+  removeDependencies: (id: string, data: AddDependenciesPayload) =>
+    axios
+      .delete<ApiResponse<{ dependentId: string; removed: number }>>(
+        `${TODO_API}/todo/${id}/dependencies`,
+        { data },
+      )
+      .then(res => res.data),
 }

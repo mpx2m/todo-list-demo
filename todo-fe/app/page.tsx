@@ -9,6 +9,7 @@ import { SearchFormValue, TodoItem } from "./data/types"
 import { ApiResponse, todoApi } from "./apis"
 import { columns } from "./data/columns"
 import { DependencyModal } from "./components/DependencyModal"
+import { RemoveDependenciesModal } from "./components/RemoveDependenciesModal"
 import { TodoModal } from "./components/TodoModal"
 import { TodoSearchForm } from "./components/TodoSearchForm"
 
@@ -23,12 +24,17 @@ export default function Home() {
   })
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDependencyModalOpen, setIsDependencyModalOpen] = useState(false)
+  const [isRemoveDependencyModalOpen, setIsRemoveDependencyModalOpen] =
+    useState(false)
   const [editingTodo, setEditingTodo] = useState<TodoItem | undefined>(
     undefined,
   )
   const [dependencyTodo, setDependencyTodo] = useState<TodoItem | undefined>(
     undefined,
   )
+  const [removingDependencyTodo, setRemovingDependencyTodo] = useState<
+    TodoItem | undefined
+  >(undefined)
 
   const buildSearchParams = (value: SearchFormValue) => ({
     ...value,
@@ -60,6 +66,12 @@ export default function Home() {
   const dependencyModalSuccess = () => {
     setIsDependencyModalOpen(false)
     setDependencyTodo(undefined)
+    queryClient.invalidateQueries({ queryKey: ["todos"] })
+  }
+
+  const removeDependencyModalSuccess = () => {
+    setIsRemoveDependencyModalOpen(false)
+    setRemovingDependencyTodo(undefined)
     queryClient.invalidateQueries({ queryKey: ["todos"] })
   }
 
@@ -121,6 +133,10 @@ export default function Home() {
             setDependencyTodo(record)
             setIsDependencyModalOpen(true)
           },
+          onRemoveDependency: record => {
+            setRemovingDependencyTodo(record)
+            setIsRemoveDependencyModalOpen(true)
+          },
           onDelete: record => {
             deleteTodoMutation.mutate(record._id)
           },
@@ -155,6 +171,15 @@ export default function Home() {
           setDependencyTodo(undefined)
         }}
         onSuccess={dependencyModalSuccess}
+      />
+      <RemoveDependenciesModal
+        open={isRemoveDependencyModalOpen}
+        todo={removingDependencyTodo}
+        onCancel={() => {
+          setIsRemoveDependencyModalOpen(false)
+          setRemovingDependencyTodo(undefined)
+        }}
+        onSuccess={removeDependencyModalSuccess}
       />
     </main>
   )
