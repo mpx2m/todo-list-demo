@@ -120,7 +120,7 @@ export class TodosService {
 
       const updated = await this.todoModel
         .findOneAndUpdate({ _id: id, deletedAt: null }, updatePayload, {
-          new: true,
+          returnDocument: 'after',
           session,
         })
         .exec();
@@ -292,7 +292,7 @@ export class TodosService {
           {
             $set: { deletedAt: new Date() },
           },
-          { new: true, session },
+          { returnDocument: 'after', session },
         )
         .exec();
 

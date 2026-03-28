@@ -85,3 +85,10 @@ export interface TodoItem {
   recurrence?: RecurrenceConfig
   createdAt: string
 }
+
+export interface TodoSearchResponse {
+  total: number
+  page: number
+  limit: number
+  results: TodoItem[]
+}

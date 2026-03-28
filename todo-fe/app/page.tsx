@@ -1,11 +1,12 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import type { AxiosError } from "axios"
+import { useState } from "react"
 import { Table, Alert, message } from "antd"
 import { useQueryClient } from "@tanstack/react-query"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { SearchFormValue, TodoItem } from "./data/types"
-import { todoApi } from "./apis"
+import { ApiResponse, todoApi } from "./apis"
 import { columns } from "./data/columns"
 import { TodoModal } from "./components/TodoModal"
 import { TodoSearchForm } from "./components/TodoSearchForm"
@@ -23,7 +24,6 @@ export default function Home() {
   const [editingTodo, setEditingTodo] = useState<TodoItem | undefined>(
     undefined,
   )
-  const [parentId, setParentId] = useState<string | undefined>(undefined)
 
   const buildSearchParams = (value: SearchFormValue) => ({
     ...value,
@@ -38,21 +38,6 @@ export default function Home() {
     queryKey: ["todos", JSON.stringify(params)],
     queryFn: () => todoApi.search(params),
   })
-
-  const autoExpandedRowKeys = useMemo(() => {
-    const collectKeys = (rows: TodoItem[]): string[] => {
-      const keys: string[] = []
-      for (const row of rows) {
-        keys.push(row._id)
-        if (row.children?.length) {
-          keys.push(...collectKeys(row.children))
-        }
-      }
-      return keys
-    }
-
-    return collectKeys((data?.data?.results || []) as TodoItem[])
-  }, [data?.data?.results])
 
   const onFinish = (values: SearchFormValue) => {
     setSearchFormValue(prev => ({
@@ -69,7 +54,12 @@ export default function Home() {
 
   const deleteTodoMutation = useMutation({
     mutationFn: (id: string) => todoApi.deleteTodo(id),
-    onSuccess: () => {
+    onSuccess: res => {
+      if (!res.success) {
+        messageApi.error(res.message || "Delete failed")
+        return
+      }
+
       messageApi.success("Todo deleted successfully!")
       if (searchFormValue.page !== 1) {
         setSearchFormValue(prev => ({
@@ -80,8 +70,10 @@ export default function Home() {
         queryClient.invalidateQueries({ queryKey: ["todos"] })
       }
     },
-    onError: error => {
-      messageApi.error(error.message || "Delete failed")
+    onError: (error: AxiosError<ApiResponse<unknown>>) => {
+      messageApi.error(
+        error.response?.data?.message || error.message || "Delete failed",
+      )
     },
   })
 
@@ -92,7 +84,6 @@ export default function Home() {
         onSearch={onFinish}
         onAdd={() => {
           setEditingTodo(undefined)
-          setParentId(undefined)
           setIsModalOpen(true)
         }}
       />
@@ -105,23 +96,14 @@ export default function Home() {
         </section>
       )}
       <Table
-        expandable={{
-          expandedRowKeys: autoExpandedRowKeys,
-        }}
         size="small"
         bordered
         loading={isLoading}
         dataSource={(data?.data?.results || []) as TodoItem[]}
         rowKey={(record: TodoItem) => record._id}
         columns={columns({
-          onAddChild: record => {
-            setEditingTodo(undefined)
-            setParentId(record._id)
-            setIsModalOpen(true)
-          },
           onEdit: record => {
             setEditingTodo(record)
-            setParentId(undefined)
             setIsModalOpen(true)
           },
           onDelete: record => {
@@ -147,7 +129,6 @@ export default function Home() {
       <TodoModal
         open={isModalOpen}
         editingTodo={editingTodo}
-        parentId={parentId}
         onCancel={() => setIsModalOpen(false)}
         onSuccess={modalSuccess}
       />

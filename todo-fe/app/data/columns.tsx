@@ -29,13 +29,11 @@ const mapPriority: Record<string, string> = {
 
 export const columns = ({
   onEdit,
-  onAddChild,
   onDelete,
   isDeleting,
   deletingId,
 }: {
   onEdit: (record: TodoItem) => void
-  onAddChild: (record: TodoItem) => void
   onDelete: (record: TodoItem) => void
   isDeleting: boolean
   deletingId?: string
@@ -156,15 +154,6 @@ export const columns = ({
           size="small"
           color="primary"
           variant="text"
-          onClick={() => onAddChild(record)}
-        >
-          Add Todo
-        </Button>
-        <Divider orientation="vertical" />
-        <Button
-          size="small"
-          color="primary"
-          variant="text"
           onClick={() => onEdit(record)}
         >
           Edit
@@ -172,7 +161,7 @@ export const columns = ({
         <Divider orientation="vertical" />
         <Popconfirm
           title="Delete this todo?"
-          description="This will delete the selected todo and all descendants."
+          description="This will delete the selected todo."
           okButtonProps={{
             danger: true,
             loading: isDeleting && deletingId === record._id,
