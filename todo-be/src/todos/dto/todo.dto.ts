@@ -1,15 +1,33 @@
 import {
   IsDateString,
-  Min,
-  IsOptional,
   IsEnum,
-  IsString,
+  IsInt,
   IsNotEmpty,
-  IsMongoId,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateIf,
+  ValidateNested,
 } from 'class-validator';
-import { TodoStatus, TodoPriority, Recurrence } from '../types';
+import { Type } from 'class-transformer';
+import { Recurrence, RecurrenceUnit, TodoPriority, TodoStatus } from '../types';
 
-export class Todo {
+export class RecurrenceDto {
+  @IsEnum(Recurrence)
+  type: Recurrence;
+
+  @ValidateIf((o: RecurrenceDto) => o.type === Recurrence.CUSTOM)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  interval?: number;
+
+  @ValidateIf((o: RecurrenceDto) => o.type === Recurrence.CUSTOM)
+  @IsEnum(RecurrenceUnit)
+  unit?: RecurrenceUnit;
+}
+
+export class TodoDto {
   @IsString()
   @IsNotEmpty()
   name: string;
@@ -19,12 +37,8 @@ export class Todo {
   description?: string;
 
   @IsOptional()
-  @IsMongoId()
-  parentId?: string;
-
-  @IsOptional()
   @IsDateString()
-  dueDate?: Date;
+  dueDate?: string;
 
   @IsOptional()
   @IsEnum(TodoStatus)
@@ -35,10 +49,7 @@ export class Todo {
   priority?: TodoPriority;
 
   @IsOptional()
-  @IsEnum(Recurrence)
-  recurrence?: Recurrence;
-
-  @IsOptional()
-  @Min(1)
-  customInterval?: number;
+  @ValidateNested()
+  @Type(() => RecurrenceDto)
+  recurrence?: RecurrenceDto;
 }

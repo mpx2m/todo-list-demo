@@ -12,19 +12,20 @@ export enum TodoPriority {
 }
 
 export enum Recurrence {
-  NONE = 'NONE',
   DAILY = 'DAILY',
   WEEKLY = 'WEEKLY',
   MONTHLY = 'MONTHLY',
   CUSTOM = 'CUSTOM',
 }
 
-export enum DependencyStatus {
-  BLOCKED = 'BLOCKED',
-  UNBLOCKED = 'UNBLOCKED',
+export enum RecurrenceUnit {
+  DAY = 'DAY',
+  WEEK = 'WEEK',
+  MONTH = 'MONTH',
 }
 
-export interface TodoTreeNode {
-  _id: string;
-  children?: TodoTreeNode[];
+export interface RecurrenceConfig {
+  type: Recurrence;
+  interval?: number;
+  unit?: RecurrenceUnit;
 }

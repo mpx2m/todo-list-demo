@@ -1,19 +1,20 @@
 import {
-  Controller,
-  Get,
-  Query,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
+  Get,
   NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Query,
 } from '@nestjs/common';
-import { TodosService } from './todos.service';
+import { AddDependenciesDto } from './dto/add-dependencies.dto';
 import { CreateTodoDto } from './dto/create-todo.dto';
+import { SearchTodoDto } from './dto/search-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
 import { MongoIdPipe } from './mongo-id.pipe';
-import { SearchTodoDto } from './dto/search-todo.dto';
+import { TodosService } from './todos.service';
 
 @Controller('todo')
 export class TodosController {
@@ -27,6 +28,41 @@ export class TodosController {
   @Get('search')
   search(@Query() query: SearchTodoDto) {
     return this.todoService.search(query);
+  }
+
+  @Post(':id/dependencies')
+  addDependencies(
+    @Param('id', MongoIdPipe) id: string,
+    @Body() body: AddDependenciesDto,
+  ) {
+    return this.todoService.addDependencies(id, body.prerequisiteIds ?? []);
+  }
+
+  @Delete(':id/dependencies/:prerequisiteId')
+  removeDependency(
+    @Param('id', MongoIdPipe) id: string,
+    @Param('prerequisiteId', MongoIdPipe) prerequisiteId: string,
+  ) {
+    return this.todoService.removeDependency(id, prerequisiteId);
+  }
+
+  @Get(':id/dependencies')
+  listDependencies(@Param('id', MongoIdPipe) id: string) {
+    return this.todoService.listDependencies(id);
+  }
+
+  @Get(':id/dependents')
+  listDependents(@Param('id', MongoIdPipe) id: string) {
+    return this.todoService.listDependents(id);
+  }
+
+  @Get(':id')
+  async findOne(@Param('id', MongoIdPipe) id: string) {
+    const todo = await this.todoService.findOne(id);
+    if (!todo) {
+      throw new NotFoundException(`Todo with id ${id} not found`);
+    }
+    return todo;
   }
 
   @Patch(':id')

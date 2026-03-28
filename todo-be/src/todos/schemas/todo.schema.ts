@@ -1,11 +1,7 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory, raw } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import {
-  TodoStatus,
-  TodoPriority,
-  Recurrence,
-  DependencyStatus,
-} from '../types';
+import { Recurrence, RecurrenceUnit, TodoPriority, TodoStatus } from '../types';
+import type { RecurrenceConfig } from '../types';
 
 export type TodoDocument = HydratedDocument<Todo>;
 
@@ -20,33 +16,36 @@ export class Todo {
   @Prop()
   dueDate?: Date;
 
-  @Prop()
-  path?: string;
-
-  @Prop({ default: 0 })
-  depth: number;
-
   @Prop({ enum: TodoStatus, default: TodoStatus.NOT_STARTED })
   status: TodoStatus;
 
   @Prop({ enum: TodoPriority, default: TodoPriority.LOW })
   priority: TodoPriority;
 
-  @Prop({ enum: DependencyStatus, default: DependencyStatus.UNBLOCKED })
-  dependencyStatus: DependencyStatus;
+  @Prop(
+    raw({
+      type: {
+        type: String,
+        enum: Object.values(Recurrence),
+        required: true,
+      },
+      interval: {
+        type: Number,
+        min: 1,
+      },
+      unit: {
+        type: String,
+        enum: Object.values(RecurrenceUnit),
+      },
+    }),
+  )
+  recurrence?: RecurrenceConfig;
 
-  @Prop({ enum: Recurrence, default: Recurrence.NONE })
-  recurrence: Recurrence;
-
-  @Prop()
-  customInterval?: number;
-
-  @Prop()
-  deletedAt?: Date;
+  @Prop({ default: null })
+  deletedAt?: Date | null;
 }
 
 export const TodoSchema = SchemaFactory.createForClass(Todo);
 
 TodoSchema.index({ name: 'text' });
-TodoSchema.index({ status: 1, priority: 1, dueDate: 1 });
-TodoSchema.index({ path: 1 });
+TodoSchema.index({ deletedAt: 1, status: 1, priority: 1, dueDate: 1 });

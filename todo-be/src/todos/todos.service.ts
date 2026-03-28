@@ -1,91 +1,37 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, ClientSession } from 'mongoose';
-import { Todo } from './schemas/todo.schema';
-import { CreateTodoDto } from './dto/create-todo.dto';
-import { UpdateTodoDto } from './dto/update-todo.dto';
-import { SearchTodoDto, SortOrder } from './dto/search-todo.dto';
 import {
-  DependencyStatus,
-  TodoStatus,
-  TodoTreeNode,
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { ClientSession, Model } from 'mongoose';
+import { CreateTodoDto } from './dto/create-todo.dto';
+import { SearchTodoDto, SortOrder } from './dto/search-todo.dto';
+import { UpdateTodoDto } from './dto/update-todo.dto';
+import { Todo } from './schemas/todo.schema';
+import { TodoDependency } from './schemas/todo-dependency.schema';
+import {
   Recurrence,
+  RecurrenceConfig,
+  RecurrenceUnit,
+  TodoStatus,
 } from './types';
 
 @Injectable()
 export class TodosService {
-  constructor(@InjectModel(Todo.name) private todoModel: Model<Todo>) {}
+  constructor(
+    @InjectModel(Todo.name) private todoModel: Model<Todo>,
+    @InjectModel(TodoDependency.name)
+    private todoDependencyModel: Model<TodoDependency>,
+  ) {}
 
   async create(createTodoDto: CreateTodoDto): Promise<Todo> {
-    const { parentId, ...rest } = createTodoDto;
-    const payload: Record<string, any> = {
-      ...rest,
-      path: null,
-      depth: 0,
-      dependencyStatus: DependencyStatus.UNBLOCKED,
-    };
+    const payload = this.buildTodoPayload(createTodoDto);
+    return this.todoModel.create(payload);
+  }
 
-    if (!parentId) {
-      return await this.todoModel.create(payload);
-    }
-
-    const session: ClientSession = await this.todoModel.db.startSession();
-    session.startTransaction();
-
-    try {
-      const parent = await this.todoModel
-        .findOne({ _id: parentId, deletedAt: null })
-        .session(session)
-        .lean()
-        .exec();
-
-      if (!parent) {
-        throw new NotFoundException(
-          `Parent todo with id ${parentId} not found`,
-        );
-      }
-
-      const normalizedParentId = String(parent._id);
-      const parentPath = parent.path
-        ? `${parent.path}:${normalizedParentId}`
-        : normalizedParentId;
-      payload.path = parentPath;
-      payload.depth = (parent.depth ?? 0) + 1;
-
-      const [createdTodo] = await this.todoModel.create([payload], { session });
-
-      const childStatus: TodoStatus =
-        (payload.status as TodoStatus | undefined) ?? TodoStatus.NOT_STARTED;
-      if (
-        childStatus === TodoStatus.NOT_STARTED ||
-        childStatus === TodoStatus.IN_PROGRESS
-      ) {
-        const ancestorIds: string[] = parentPath.split(':').filter(Boolean);
-        await this.todoModel
-          .updateMany(
-            {
-              _id: { $in: ancestorIds },
-              deletedAt: null,
-            },
-            {
-              $set: {
-                status: TodoStatus.NOT_STARTED,
-                dependencyStatus: DependencyStatus.BLOCKED,
-              },
-            },
-            { session },
-          )
-          .exec();
-      }
-
-      await session.commitTransaction();
-      return createdTodo;
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+  async findOne(id: string): Promise<Todo | null> {
+    return this.todoModel.findOne({ _id: id, deletedAt: null }).exec();
   }
 
   async search(query: SearchTodoDto) {
@@ -95,43 +41,22 @@ export class TodosService {
       dueDateEnd,
       status,
       priority,
-      dependencyStatus,
       sortBy,
       sortOrder,
       page,
       limit,
     } = query;
 
-    const filter: Record<string, any> = {};
-    filter.path = null;
-    filter.deletedAt = null;
-
-    if (status) {
-      filter.status = status;
-    }
-    if (priority) {
-      filter.priority = priority;
-    }
-    if (dependencyStatus) {
-      filter.dependencyStatus = dependencyStatus;
-    }
-    if (name?.trim()) {
-      filter.$text = { $search: name.trim() };
-    }
+    const filter: Record<string, unknown> = { deletedAt: null };
+    if (status) filter.status = status;
+    if (priority) filter.priority = priority;
+    if (name?.trim()) filter.name = { $regex: name.trim(), $options: 'i' };
 
     if (dueDateStart || dueDateEnd) {
-      const dateFilter: Record<string, Date> = {};
-
-      if (dueDateStart) {
-        const startDate = new Date(dueDateStart);
-        dateFilter.$gte = startDate;
-      }
-      if (dueDateEnd) {
-        dateFilter.$lte = new Date(dueDateEnd);
-      }
-      if (Object.keys(dateFilter).length > 0) {
-        filter.dueDate = dateFilter;
-      }
+      const dueFilter: Record<string, Date> = {};
+      if (dueDateStart) dueFilter.$gte = new Date(dueDateStart);
+      if (dueDateEnd) dueFilter.$lte = new Date(dueDateEnd);
+      if (Object.keys(dueFilter).length > 0) filter.dueDate = dueFilter;
     }
 
     const skip = (page - 1) * limit;
@@ -140,7 +65,7 @@ export class TodosService {
       _id: -1,
     };
 
-    const [total, rootResults] = await Promise.all([
+    const [total, rows] = await Promise.all([
       this.todoModel.countDocuments(filter).exec(),
       this.todoModel
         .find(filter)
@@ -151,71 +76,112 @@ export class TodosService {
         .exec(),
     ]);
 
-    const rootIds = rootResults.map((todo) => String(todo._id));
-    const descendants =
-      rootIds.length === 0
-        ? []
-        : await this.todoModel
-            .find({
-              deletedAt: null,
-              $or: rootIds.map((id) => ({
-                path: { $regex: `^${id}(:|$)` },
-              })),
-            })
-            .sort(sort)
-            .lean()
-            .exec();
-
-    const nodeMap = new Map<string, TodoTreeNode>();
-
-    for (const todo of [...rootResults, ...descendants]) {
-      nodeMap.set(String(todo._id), {
-        ...todo,
-        _id: String(todo._id),
-      });
-    }
-
-    for (const todo of descendants) {
-      const currentId = String(todo._id);
-      const pathSegments = (todo.path as string).split(':').filter(Boolean);
-      const parentId = pathSegments[pathSegments.length - 1];
-      const parentNode = nodeMap.get(parentId)!;
-      const currentNode = nodeMap.get(currentId)!;
-      parentNode.children ??= [];
-      parentNode.children.push(currentNode);
-    }
-
-    const resultsWithChildren = rootIds
-      .map((id) => nodeMap.get(id))
-      .filter((node): node is TodoTreeNode => node !== undefined);
-
     return {
       total,
       page,
       limit,
-      results: resultsWithChildren,
+      results: rows,
     };
   }
 
   async update(id: string, updateTodoDto: UpdateTodoDto): Promise<Todo | null> {
-    const setPayload = Object.fromEntries(
-      Object.entries(updateTodoDto).filter(([, v]) => v !== undefined),
-    );
+    const session = await this.todoModel.db.startSession();
+    session.startTransaction();
 
-    const updatePayload: Record<string, any> = { $set: setPayload };
+    try {
+      const existing = await this.todoModel
+        .findOne({ _id: id, deletedAt: null })
+        .session(session)
+        .exec();
+      if (!existing) {
+        await session.abortTransaction();
+        return null;
+      }
 
-    if (
-      updateTodoDto.recurrence &&
-      updateTodoDto.recurrence !== Recurrence.CUSTOM
-    ) {
-      updatePayload.$unset = { customInterval: 1 };
+      const setPayload = Object.fromEntries(
+        Object.entries(updateTodoDto).filter(([, v]) => v !== undefined),
+      );
+      const unsetPayload: Record<string, 1> = {};
+
+      if (updateTodoDto.recurrence) {
+        setPayload.recurrence = this.normalizeRecurrence(
+          updateTodoDto.recurrence,
+        );
+      } else {
+        delete setPayload.recurrence;
+        unsetPayload.recurrence = 1;
+      }
+
+      const updatePayload: Record<string, unknown> = {};
+      if (Object.keys(setPayload).length > 0) {
+        updatePayload.$set = setPayload;
+      }
+      if (Object.keys(unsetPayload).length > 0) {
+        updatePayload.$unset = unsetPayload;
+      }
+
+      const updated = await this.todoModel
+        .findOneAndUpdate({ _id: id, deletedAt: null }, updatePayload, {
+          new: true,
+          session,
+        })
+        .exec();
+
+      if (!updated) {
+        await session.abortTransaction();
+        return null;
+      }
+
+      if (
+        existing.status !== TodoStatus.COMPLETED &&
+        updated.status === TodoStatus.COMPLETED &&
+        updated.recurrence
+      ) {
+        const baseDueDate = updated.dueDate
+          ? new Date(updated.dueDate)
+          : new Date();
+        const nextDueDate = this.getNextDueDate(
+          baseDueDate,
+          updated.recurrence,
+        );
+
+        const [nextTodo] = await this.todoModel.create(
+          [
+            this.buildTodoPayload({
+              name: updated.name,
+              description: updated.description,
+              dueDate: nextDueDate,
+              priority: updated.priority,
+              recurrence: updated.recurrence,
+              status: TodoStatus.NOT_STARTED,
+            }),
+          ],
+          { session },
+        );
+
+        const activePrerequisiteEdges = await this.todoDependencyModel
+          .find({ dependentId: updated._id, deletedAt: null })
+          .session(session)
+          .lean()
+          .exec();
+
+        if (activePrerequisiteEdges.length > 0) {
+          const copyEdges = activePrerequisiteEdges.map((edge) => ({
+            prerequisiteId: edge.prerequisiteId,
+            dependentId: nextTodo._id,
+          }));
+          await this.todoDependencyModel.insertMany(copyEdges, { session });
+        }
+      }
+
+      await session.commitTransaction();
+      return updated;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      await session.endSession();
     }
-
-    return this.todoModel
-      .findOneAndUpdate({ _id: id, deletedAt: null }, updatePayload, {
-        new: true,
-      })
-      .exec();
   }
 
   async remove(id: string): Promise<Todo | null> {
@@ -234,120 +200,24 @@ export class TodosService {
       }
 
       const now = new Date();
-      const todoId = String(todo._id);
-      const subtreePath = todo.path ? `${todo.path}:${todoId}` : todoId;
-      const ancestorIds = todo.path?.split(':').filter(Boolean) ?? [];
-
       await this.todoModel
-        .updateMany(
-          {
-            deletedAt: null,
-            $or: [
-              { _id: todo._id },
-              { path: { $regex: `^${subtreePath}(:|$)` } },
-            ],
-          },
+        .updateOne(
+          { _id: id, deletedAt: null },
           { $set: { deletedAt: now } },
           { session },
         )
         .exec();
 
-      const ancestors =
-        ancestorIds.length === 0
-          ? []
-          : await this.todoModel
-              .find({
-                _id: { $in: ancestorIds },
-                deletedAt: null,
-              })
-              .session(session)
-              .lean()
-              .exec();
-      const ancestorMap = new Map(
-        ancestors.map((ancestor) => [String(ancestor._id), ancestor]),
-      );
-
-      const firstAncestorId =
-        ancestorIds.length > 0
-          ? ancestorIds[ancestorIds.length - 1]
-          : undefined;
-      const firstAncestor = firstAncestorId
-        ? ancestorMap.get(firstAncestorId)
-        : undefined;
-
-      // Only when the first ancestor is BLOCKED, recompute all ancestors.
-      if (
-        firstAncestor &&
-        firstAncestor.dependencyStatus === DependencyStatus.BLOCKED
-      ) {
-        const ancestorsToBlocked: string[] = [];
-        const ancestorsToUnblocked: string[] = [];
-
-        // Re-evaluate dependency status for all ancestors of the removed subtree.
-        for (const ancestorId of ancestorIds) {
-          const ancestor = ancestorMap.get(ancestorId);
-
-          if (!ancestor) {
-            continue;
-          }
-
-          const ancestorPath = ancestor.path
-            ? `${ancestor.path}:${ancestorId}`
-            : ancestorId;
-
-          const remainingDescendants = await this.todoModel
-            .find({
-              deletedAt: null,
-              path: { $regex: `^${ancestorPath}(:|$)` },
-            })
-            .session(session)
-            .lean()
-            .exec();
-
-          const hasPendingOrInProgressDescendant = remainingDescendants.some(
-            (node) =>
-              node.status === TodoStatus.NOT_STARTED ||
-              node.status === TodoStatus.IN_PROGRESS,
-          );
-          const nextDependencyStatus = hasPendingOrInProgressDescendant
-            ? DependencyStatus.BLOCKED
-            : DependencyStatus.UNBLOCKED;
-
-          if (nextDependencyStatus !== ancestor.dependencyStatus) {
-            if (nextDependencyStatus === DependencyStatus.BLOCKED) {
-              ancestorsToBlocked.push(ancestorId);
-            } else {
-              ancestorsToUnblocked.push(ancestorId);
-            }
-          }
-        }
-
-        if (ancestorsToBlocked.length > 0) {
-          await this.todoModel
-            .updateMany(
-              {
-                _id: { $in: ancestorsToBlocked },
-                deletedAt: null,
-              },
-              { $set: { dependencyStatus: DependencyStatus.BLOCKED } },
-              { session },
-            )
-            .exec();
-        }
-
-        if (ancestorsToUnblocked.length > 0) {
-          await this.todoModel
-            .updateMany(
-              {
-                _id: { $in: ancestorsToUnblocked },
-                deletedAt: null,
-              },
-              { $set: { dependencyStatus: DependencyStatus.UNBLOCKED } },
-              { session },
-            )
-            .exec();
-        }
-      }
+      await this.todoDependencyModel
+        .updateMany(
+          {
+            deletedAt: null,
+            $or: [{ prerequisiteId: id }, { dependentId: id }],
+          },
+          { $set: { deletedAt: now } },
+          { session },
+        )
+        .exec();
 
       await session.commitTransaction();
       return todo;
@@ -357,5 +227,271 @@ export class TodosService {
     } finally {
       await session.endSession();
     }
+  }
+
+  async addDependencies(dependentId: string, prerequisiteIds: string[]) {
+    if (prerequisiteIds.length === 0) {
+      return { dependentId, created: 0 };
+    }
+
+    const session = await this.todoModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const dependentTodo = await this.todoModel
+        .findOne({ _id: dependentId, deletedAt: null })
+        .session(session)
+        .lean()
+        .exec();
+      if (!dependentTodo) {
+        throw new NotFoundException(`Todo with id ${dependentId} not found`);
+      }
+
+      const uniquePrerequisiteIds = [...new Set(prerequisiteIds)];
+      if (uniquePrerequisiteIds.some((id) => id === dependentId)) {
+        throw new BadRequestException('Todo cannot depend on itself');
+      }
+
+      const prerequisites = await this.todoModel
+        .find({ _id: { $in: uniquePrerequisiteIds }, deletedAt: null })
+        .session(session)
+        .lean()
+        .exec();
+      const foundIds = new Set(prerequisites.map((item) => String(item._id)));
+      const missingIds = uniquePrerequisiteIds.filter(
+        (id) => !foundIds.has(id),
+      );
+      if (missingIds.length > 0) {
+        throw new NotFoundException(
+          `Prerequisite todo(s) not found: ${missingIds.join(', ')}`,
+        );
+      }
+
+      for (const prerequisiteId of uniquePrerequisiteIds) {
+        const hasCycle = await this.wouldCreateCycle(
+          prerequisiteId,
+          dependentId,
+          session,
+        );
+        if (hasCycle) {
+          throw new BadRequestException(
+            `Adding edge ${prerequisiteId} -> ${dependentId} introduces a cycle`,
+          );
+        }
+      }
+
+      const existingEdges = await this.todoDependencyModel
+        .find({
+          prerequisiteId: { $in: uniquePrerequisiteIds },
+          dependentId,
+          deletedAt: null,
+        })
+        .session(session)
+        .lean()
+        .exec();
+      const existingPrerequisiteSet = new Set(
+        existingEdges.map((edge) => String(edge.prerequisiteId)),
+      );
+
+      const toCreate = uniquePrerequisiteIds
+        .filter((id) => !existingPrerequisiteSet.has(id))
+        .map((id) => ({ prerequisiteId: id, dependentId }));
+
+      if (toCreate.length > 0) {
+        await this.todoDependencyModel.insertMany(toCreate, { session });
+      }
+
+      await session.commitTransaction();
+      return {
+        dependentId,
+        created: toCreate.length,
+      };
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  async removeDependency(dependentId: string, prerequisiteId: string) {
+    const session = await this.todoModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const edge = await this.todoDependencyModel
+        .findOneAndUpdate(
+          {
+            dependentId,
+            prerequisiteId,
+            deletedAt: null,
+          },
+          {
+            $set: { deletedAt: new Date() },
+          },
+          { new: true, session },
+        )
+        .exec();
+
+      await session.commitTransaction();
+      return { removed: Boolean(edge) };
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  async listDependencies(id: string) {
+    const edges = await this.todoDependencyModel
+      .find({ dependentId: id, deletedAt: null })
+      .lean()
+      .exec();
+    const prerequisiteIds = [
+      ...new Set(edges.map((edge) => String(edge.prerequisiteId))),
+    ];
+    if (prerequisiteIds.length === 0) {
+      return [];
+    }
+    return this.todoModel
+      .find({ _id: { $in: prerequisiteIds }, deletedAt: null })
+      .lean()
+      .exec();
+  }
+
+  async listDependents(id: string) {
+    const edges = await this.todoDependencyModel
+      .find({ prerequisiteId: id, deletedAt: null })
+      .lean()
+      .exec();
+    const dependentIds = [
+      ...new Set(edges.map((edge) => String(edge.dependentId))),
+    ];
+    if (dependentIds.length === 0) {
+      return [];
+    }
+    return this.todoModel
+      .find({ _id: { $in: dependentIds }, deletedAt: null })
+      .lean()
+      .exec();
+  }
+
+  private async wouldCreateCycle(
+    prerequisiteId: string,
+    dependentId: string,
+    session: ClientSession,
+  ): Promise<boolean> {
+    if (prerequisiteId === dependentId) {
+      return true;
+    }
+
+    const visited = new Set<string>([dependentId]);
+    let frontier: string[] = [dependentId];
+
+    while (frontier.length > 0) {
+      const edges = await this.todoDependencyModel
+        .find({
+          prerequisiteId: { $in: frontier },
+          deletedAt: null,
+        })
+        .session(session)
+        .select({ dependentId: 1 })
+        .lean()
+        .exec();
+
+      const nextFrontier: string[] = [];
+      for (const edge of edges) {
+        const nextId = String(edge.dependentId);
+        if (nextId === prerequisiteId) {
+          return true;
+        }
+        if (!visited.has(nextId)) {
+          visited.add(nextId);
+          nextFrontier.push(nextId);
+        }
+      }
+      frontier = nextFrontier;
+    }
+
+    return false;
+  }
+
+  private getNextDueDate(baseDate: Date, recurrence: RecurrenceConfig): Date {
+    const next = new Date(baseDate);
+    switch (recurrence.type) {
+      case Recurrence.DAILY:
+        next.setDate(next.getDate() + 1);
+        return next;
+      case Recurrence.WEEKLY:
+        next.setDate(next.getDate() + 7);
+        return next;
+      case Recurrence.MONTHLY:
+        next.setMonth(next.getMonth() + 1);
+        return next;
+      case Recurrence.CUSTOM:
+        return this.addCustomInterval(next, recurrence);
+      default:
+        return next;
+    }
+  }
+
+  private normalizeRecurrence(recurrence: RecurrenceConfig): RecurrenceConfig {
+    if (recurrence.type !== Recurrence.CUSTOM) {
+      return {
+        type: recurrence.type,
+      };
+    }
+
+    if (!recurrence.interval || !recurrence.unit) {
+      throw new BadRequestException(
+        'Custom recurrence requires both interval and unit',
+      );
+    }
+
+    return {
+      type: recurrence.type,
+      interval: recurrence.interval,
+      unit: recurrence.unit,
+    };
+  }
+
+  private addCustomInterval(date: Date, recurrence: RecurrenceConfig): Date {
+    if (!recurrence.interval) {
+      throw new BadRequestException(
+        'Custom recurrence requires a valid interval',
+      );
+    }
+
+    const interval = recurrence.interval;
+
+    switch (recurrence.unit) {
+      case RecurrenceUnit.WEEK:
+        date.setDate(date.getDate() + interval * 7);
+        return date;
+      case RecurrenceUnit.MONTH:
+        date.setMonth(date.getMonth() + interval);
+        return date;
+      case RecurrenceUnit.DAY:
+      default:
+        date.setDate(date.getDate() + interval);
+        return date;
+    }
+  }
+
+  private buildTodoPayload(todo: {
+    name: string;
+    description?: string;
+    dueDate?: string | Date;
+    priority?: Todo['priority'];
+    recurrence?: RecurrenceConfig;
+    status?: Todo['status'];
+  }): Record<string, unknown> {
+    return {
+      ...todo,
+      recurrence: todo.recurrence
+        ? this.normalizeRecurrence(todo.recurrence)
+        : undefined,
+    };
   }
 }

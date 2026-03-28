@@ -1,8 +1,8 @@
 import { PartialType } from '@nestjs/swagger';
-import { Todo } from './todo.dto';
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
+import { TodoDto } from './todo.dto';
 
-export class CreateTodoDto extends PartialType(Todo) {
+export class CreateTodoDto extends PartialType(TodoDto) {
   @IsString()
   @IsNotEmpty()
   name: string;
