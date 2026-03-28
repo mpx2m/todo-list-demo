@@ -106,7 +106,7 @@ export class TodosService {
         recurrence:
           nextStatus === TodoStatus.ARCHIVED
             ? undefined
-            : (updateTodoDto.recurrence ?? existing.recurrence),
+            : updateTodoDto.recurrence,
       });
 
       if (
