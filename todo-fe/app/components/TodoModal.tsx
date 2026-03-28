@@ -169,7 +169,24 @@ export function TodoModal({
           <Form.Item label="Priority" name="priority">
             <Radio.Group optionType="button" options={priorityOptions} />
           </Form.Item>
-          <Form.Item name="dueDate" label="Due date">
+          <Form.Item
+            name="dueDate"
+            label="Due date"
+            dependencies={["recurrence"]}
+            rules={[
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!getFieldValue("recurrence") || value) {
+                    return Promise.resolve()
+                  }
+
+                  return Promise.reject(
+                    new Error("Please select due date for recurrence todo"),
+                  )
+                },
+              }),
+            ]}
+          >
             <DatePicker />
           </Form.Item>
           <Form.Item label="Recurrence" name="recurrence">

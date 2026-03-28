@@ -26,6 +26,7 @@ export class TodosService {
   ) {}
 
   async create(createTodoDto: CreateTodoDto): Promise<Todo> {
+    this.assertDueDateForRecurrence(createTodoDto);
     const payload = this.buildTodoPayload(createTodoDto);
     return this.todoModel.create(payload);
   }
@@ -99,6 +100,14 @@ export class TodosService {
       }
 
       const nextStatus = updateTodoDto.status ?? existing.status;
+
+      this.assertDueDateForRecurrence({
+        dueDate: updateTodoDto.dueDate ?? existing.dueDate,
+        recurrence:
+          nextStatus === TodoStatus.ARCHIVED
+            ? undefined
+            : (updateTodoDto.recurrence ?? existing.recurrence),
+      });
 
       if (
         existing.status !== TodoStatus.IN_PROGRESS &&
@@ -450,12 +459,26 @@ export class TodosService {
     recurrence?: RecurrenceConfig;
     status?: Todo['status'];
   }): Record<string, unknown> {
-    return {
-      ...todo,
-      recurrence: todo.recurrence
-        ? this.normalizeRecurrence(todo.recurrence)
-        : undefined,
-    };
+    const payload: Record<string, unknown> = { ...todo };
+
+    if (todo.recurrence) {
+      payload.recurrence = this.normalizeRecurrence(todo.recurrence);
+    } else {
+      delete payload.recurrence;
+    }
+
+    return payload;
+  }
+
+  private assertDueDateForRecurrence(todo: {
+    dueDate?: string | Date;
+    recurrence?: RecurrenceConfig;
+  }): void {
+    if (todo.recurrence && !todo.dueDate) {
+      throw new BadRequestException(
+        'Due date is required when recurrence is provided',
+      );
+    }
   }
 
   private buildUpdatePayload(
