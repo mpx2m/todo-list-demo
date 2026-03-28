@@ -24,11 +24,6 @@ export class TodosController {
     return this.todoService.create(createTodoDto);
   }
 
-  @Get('all')
-  findAll() {
-    return this.todoService.findAll();
-  }
-
   @Get('search')
   search(@Query() query: SearchTodoDto) {
     return this.todoService.search(query);

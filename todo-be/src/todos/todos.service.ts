@@ -69,7 +69,7 @@ export class TodosService {
             },
             {
               $set: {
-                status: childStatus,
+                status: TodoStatus.NOT_STARTED,
                 dependencyStatus: DependencyStatus.BLOCKED,
               },
             },
@@ -259,13 +259,5 @@ export class TodosService {
     } finally {
       await session.endSession();
     }
-  }
-
-  async findAll(): Promise<Todo[]> {
-    return this.todoModel.find({ deletedAt: null }).exec();
-  }
-
-  async findOne(id: string): Promise<Todo | null> {
-    return this.todoModel.findOne({ _id: id, deletedAt: null }).exec();
   }
 }
