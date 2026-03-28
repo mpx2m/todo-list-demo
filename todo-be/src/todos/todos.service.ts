@@ -71,16 +71,14 @@ export class TodosService {
       { $match: filter },
       {
         $lookup: {
-          from: 'tododependencies',
+          from: this.todoDependencyModel.collection.name,
           let: { todoId: '$_id' },
           pipeline: [
             {
               $match: {
+                deletedAt: null,
                 $expr: {
-                  $and: [
-                    { $eq: ['$dependentId', '$$todoId'] },
-                    { $eq: ['$deletedAt', null] },
-                  ],
+                  $eq: ['$dependentId', '$$todoId'],
                 },
               },
             },
@@ -96,22 +94,17 @@ export class TodosService {
       },
       {
         $lookup: {
-          from: 'todos',
+          from: this.todoModel.collection.name,
           let: { prerequisiteIds: '$dependencyEdges.prerequisiteId' },
           pipeline: [
             {
               $match: {
+                deletedAt: null,
+                status: {
+                  $in: [TodoStatus.NOT_STARTED, TodoStatus.IN_PROGRESS],
+                },
                 $expr: {
-                  $and: [
-                    { $in: ['$_id', '$$prerequisiteIds'] },
-                    { $eq: ['$deletedAt', null] },
-                    {
-                      $in: [
-                        '$status',
-                        [TodoStatus.NOT_STARTED, TodoStatus.IN_PROGRESS],
-                      ],
-                    },
-                  ],
+                  $in: ['$_id', '$$prerequisiteIds'],
                 },
               },
             },
@@ -361,7 +354,10 @@ export class TodosService {
 
       const toCreate = uniquePrerequisiteIds
         .filter((id) => !existingPrerequisiteSet.has(id))
-        .map((id) => ({ prerequisiteId: id, dependentId }));
+        .map((id) => ({
+          prerequisiteId: new Types.ObjectId(id),
+          dependentId: new Types.ObjectId(dependentId),
+        }));
 
       if (toCreate.length > 0) {
         await this.todoDependencyModel.insertMany(toCreate, { session });
