@@ -98,3 +98,7 @@ export interface TodoSearchResponse {
   limit: number
   results: TodoItem[]
 }
+
+export interface AddDependenciesPayload {
+  prerequisiteIds: string[]
+}

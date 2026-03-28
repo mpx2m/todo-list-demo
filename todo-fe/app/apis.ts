@@ -5,6 +5,7 @@ import {
   Update,
   TodoItem,
   TodoSearchResponse,
+  AddDependenciesPayload,
 } from "./data/types"
 
 const TODO_API = "http://localhost:3000"
@@ -33,5 +34,12 @@ export const todoApi = {
   deleteTodo: (id: string) =>
     axios
       .delete<ApiResponse<TodoItem>>(`${TODO_API}/todo/${id}`)
+      .then(res => res.data),
+  addDependencies: (id: string, data: AddDependenciesPayload) =>
+    axios
+      .post<ApiResponse<{ dependentId: string; created: number }>>(
+        `${TODO_API}/todo/${id}/dependencies`,
+        data,
+      )
       .then(res => res.data),
 }

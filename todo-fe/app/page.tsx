@@ -8,6 +8,7 @@ import { useMutation, useQuery } from "@tanstack/react-query"
 import { SearchFormValue, TodoItem } from "./data/types"
 import { ApiResponse, todoApi } from "./apis"
 import { columns } from "./data/columns"
+import { DependencyModal } from "./components/DependencyModal"
 import { TodoModal } from "./components/TodoModal"
 import { TodoSearchForm } from "./components/TodoSearchForm"
 
@@ -21,7 +22,11 @@ export default function Home() {
     limit: 10,
   })
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isDependencyModalOpen, setIsDependencyModalOpen] = useState(false)
   const [editingTodo, setEditingTodo] = useState<TodoItem | undefined>(
+    undefined,
+  )
+  const [dependencyTodo, setDependencyTodo] = useState<TodoItem | undefined>(
     undefined,
   )
 
@@ -49,6 +54,12 @@ export default function Home() {
 
   const modalSuccess = () => {
     setIsModalOpen(false)
+    queryClient.invalidateQueries({ queryKey: ["todos"] })
+  }
+
+  const dependencyModalSuccess = () => {
+    setIsDependencyModalOpen(false)
+    setDependencyTodo(undefined)
     queryClient.invalidateQueries({ queryKey: ["todos"] })
   }
 
@@ -106,6 +117,10 @@ export default function Home() {
             setEditingTodo(record)
             setIsModalOpen(true)
           },
+          onAddDependency: record => {
+            setDependencyTodo(record)
+            setIsDependencyModalOpen(true)
+          },
           onDelete: record => {
             deleteTodoMutation.mutate(record._id)
           },
@@ -131,6 +146,15 @@ export default function Home() {
         editingTodo={editingTodo}
         onCancel={() => setIsModalOpen(false)}
         onSuccess={modalSuccess}
+      />
+      <DependencyModal
+        open={isDependencyModalOpen}
+        todo={dependencyTodo}
+        onCancel={() => {
+          setIsDependencyModalOpen(false)
+          setDependencyTodo(undefined)
+        }}
+        onSuccess={dependencyModalSuccess}
       />
     </main>
   )

@@ -93,7 +93,7 @@ export function TodoSearchForm({ onSearch, onAdd }: TodoSearchFormProps) {
       </Form.Item>
       <Form.Item>
         <Button type="primary" icon={<EditOutlined />} onClick={onAdd}>
-          Add Todo
+          Create Todo
         </Button>
       </Form.Item>
     </Form>
