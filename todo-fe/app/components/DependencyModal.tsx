@@ -102,6 +102,8 @@ export function DependencyModal({
     <>
       {contextHolder}
       <Modal
+        mask={{ closable: false }}
+        closable
         title={todo ? `Add Dependencies: ${todo.name}` : "Add Dependencies"}
         open={open}
         destroyOnHidden

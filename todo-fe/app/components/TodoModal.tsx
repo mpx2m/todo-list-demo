@@ -133,6 +133,7 @@ export function TodoModal({
     <>
       {contextHolder}
       <Modal
+        mask={{ closable: false }}
         confirmLoading={
           createTodoMutation.isPending || updateTodoMutation.isPending
         }
