@@ -11,7 +11,7 @@ export class TodoDependency {
   @Prop({ type: Types.ObjectId, ref: 'Todo', required: true })
   dependentId: Types.ObjectId;
 
-  @Prop({ default: null })
+  @Prop({ type: Date, default: null })
   deletedAt?: Date | null;
 }
 

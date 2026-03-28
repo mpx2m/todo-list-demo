@@ -41,7 +41,7 @@ export class Todo {
   )
   recurrence?: RecurrenceConfig;
 
-  @Prop({ default: null })
+  @Prop({ type: Date, default: null })
   deletedAt?: Date | null;
 }
 
