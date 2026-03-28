@@ -27,8 +27,8 @@ export enum RecurrenceUnit {
 }
 
 export enum DependencyStatus {
-  BLOCKED = "BLOCKED",
   UNBLOCKED = "UNBLOCKED",
+  BLOCKED = "BLOCKED",
 }
 
 export interface CreateFormValue {

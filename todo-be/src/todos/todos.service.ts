@@ -11,6 +11,7 @@ import { UpdateTodoDto } from './dto/update-todo.dto';
 import { Todo } from './schemas/todo.schema';
 import { TodoDependency } from './schemas/todo-dependency.schema';
 import {
+  DependencyStatus,
   Recurrence,
   RecurrenceConfig,
   RecurrenceUnit,
@@ -267,6 +268,28 @@ export class TodosService {
 
       if (toCreate.length > 0) {
         await this.todoDependencyModel.insertMany(toCreate, { session });
+      }
+
+      if (dependentTodo.dependencyStatus === DependencyStatus.UNBLOCKED) {
+        const hasBlockingPrerequisite = prerequisites.some((prerequisite) =>
+          [TodoStatus.NOT_STARTED, TodoStatus.IN_PROGRESS].includes(
+            prerequisite.status,
+          ),
+        );
+
+        if (hasBlockingPrerequisite) {
+          await this.todoModel
+            .updateOne(
+              { _id: dependentId, deletedAt: null },
+              {
+                $set: {
+                  dependencyStatus: DependencyStatus.BLOCKED,
+                },
+              },
+              { session },
+            )
+            .exec();
+        }
       }
 
       await session.commitTransaction();

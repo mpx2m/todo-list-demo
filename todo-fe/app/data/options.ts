@@ -25,6 +25,6 @@ export const recurrenceUnitOptions = [
 ]
 
 export const dependencyStatusOptions = [
-  { value: "BLOCKED", label: "Blocked" },
   { value: "UNBLOCKED", label: "Unblocked" },
+  { value: "BLOCKED", label: "Blocked" },
 ]

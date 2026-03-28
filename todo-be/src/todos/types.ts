@@ -12,8 +12,8 @@ export enum TodoPriority {
 }
 
 export enum DependencyStatus {
-  BLOCKED = 'BLOCKED',
   UNBLOCKED = 'UNBLOCKED',
+  BLOCKED = 'BLOCKED',
 }
 
 export enum Recurrence {
