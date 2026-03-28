@@ -1,12 +1,6 @@
 import { Prop, Schema, SchemaFactory, raw } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import {
-  Recurrence,
-  RecurrenceUnit,
-  TodoPriority,
-  TodoStatus,
-  DependencyStatus,
-} from '../types';
+import { Recurrence, RecurrenceUnit, TodoPriority, TodoStatus } from '../types';
 import type { RecurrenceConfig } from '../types';
 
 export type TodoDocument = HydratedDocument<Todo>;
@@ -27,9 +21,6 @@ export class Todo {
 
   @Prop({ enum: TodoPriority, default: TodoPriority.LOW })
   priority: TodoPriority;
-
-  @Prop({ enum: DependencyStatus, default: DependencyStatus.UNBLOCKED })
-  dependencyStatus: DependencyStatus;
 
   @Prop(
     raw({
