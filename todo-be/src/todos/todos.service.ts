@@ -103,10 +103,7 @@ export class TodosService {
 
       this.assertDueDateForRecurrence({
         dueDate: updateTodoDto.dueDate,
-        recurrence:
-          nextStatus === TodoStatus.ARCHIVED
-            ? undefined
-            : updateTodoDto.recurrence,
+        recurrence: updateTodoDto.recurrence,
       });
 
       if (
@@ -116,7 +113,7 @@ export class TodosService {
         await this.ensureDependenciesReadyForInProgress(id, session);
       }
 
-      const updatePayload = this.buildUpdatePayload(updateTodoDto, nextStatus);
+      const updatePayload = this.buildUpdatePayload(updateTodoDto);
 
       const updated = await this.todoModel
         .findOneAndUpdate({ _id: id, deletedAt: null }, updatePayload, {
@@ -483,7 +480,6 @@ export class TodosService {
 
   private buildUpdatePayload(
     updateTodoDto: UpdateTodoDto,
-    nextStatus: TodoStatus,
   ): Record<string, unknown> {
     const setPayload = Object.fromEntries(
       Object.entries(updateTodoDto).filter(([, v]) => v !== undefined),
@@ -494,12 +490,7 @@ export class TodosService {
       unsetPayload.dueDate = 1;
     }
 
-    if (nextStatus === TodoStatus.ARCHIVED) {
-      delete setPayload.dueDate;
-      delete setPayload.recurrence;
-      unsetPayload.dueDate = 1;
-      unsetPayload.recurrence = 1;
-    } else if (updateTodoDto.recurrence) {
+    if (updateTodoDto.recurrence) {
       setPayload.recurrence = this.normalizeRecurrence(
         updateTodoDto.recurrence,
       );
