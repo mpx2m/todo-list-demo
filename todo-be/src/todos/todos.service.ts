@@ -102,7 +102,7 @@ export class TodosService {
       const nextStatus = updateTodoDto.status ?? existing.status;
 
       this.assertDueDateForRecurrence({
-        dueDate: updateTodoDto.dueDate ?? existing.dueDate,
+        dueDate: updateTodoDto.dueDate,
         recurrence:
           nextStatus === TodoStatus.ARCHIVED
             ? undefined
@@ -489,6 +489,10 @@ export class TodosService {
       Object.entries(updateTodoDto).filter(([, v]) => v !== undefined),
     );
     const unsetPayload: Record<string, 1> = {};
+
+    if (updateTodoDto.dueDate === undefined) {
+      unsetPayload.dueDate = 1;
+    }
 
     if (nextStatus === TodoStatus.ARCHIVED) {
       delete setPayload.recurrence;

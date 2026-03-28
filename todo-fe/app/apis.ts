@@ -1,5 +1,5 @@
 import axios from "axios"
-import { Search, Create } from "./data/types"
+import { Search, Create, Update } from "./data/types"
 const TODO_API = "http://localhost:3000"
 
 export const todoApi = {
@@ -9,7 +9,7 @@ export const todoApi = {
       .then(res => res.data),
   createTodo: (data: Create) =>
     axios.post(`${TODO_API}/todo`, data).then(res => res.data),
-  updateTodo: (id: string, data: Partial<Create>) =>
+  updateTodo: (id: string, data: Update) =>
     axios.patch(`${TODO_API}/todo/${id}`, data).then(res => res.data),
   deleteTodo: (id: string) =>
     axios.delete(`${TODO_API}/todo/${id}`).then(res => res.data),

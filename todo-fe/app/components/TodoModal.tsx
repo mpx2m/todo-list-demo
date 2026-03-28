@@ -14,11 +14,11 @@ import {
 } from "antd"
 import { useMutation } from "@tanstack/react-query"
 import {
-  Create,
   CreateFormValue,
   TodoItem,
   Recurrence,
   RecurrenceUnit,
+  Update,
 } from "../data/types"
 import {
   recurrenceOptions,
@@ -76,7 +76,7 @@ export function TodoModal({
   })
 
   const updateTodoMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Create> }) =>
+    mutationFn: ({ id, data }: { id: string; data: Update }) =>
       todoApi.updateTodo(id, data),
     onSuccess: res => {
       if (res.success) {
@@ -102,7 +102,7 @@ export function TodoModal({
             type: values.recurrence,
           }
 
-    const payload: Create = {
+    const basePayload = {
       name: values.name,
       description: values.description,
       priority: values.priority,
@@ -114,12 +114,12 @@ export function TodoModal({
     if (editingTodo) {
       updateTodoMutation.mutate({
         id: editingTodo._id,
-        data: payload,
+        data: basePayload,
       })
       return
     }
 
-    createTodoMutation.mutate(payload)
+    createTodoMutation.mutate(basePayload)
   }
 
   return (

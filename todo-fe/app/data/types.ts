@@ -56,6 +56,8 @@ export type Create = Omit<
   recurrence?: RecurrenceConfig
 }
 
+export type Update = Partial<Create>
+
 export interface SearchFormValue {
   name?: string
   status?: Status
