@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Model, Types } from 'mongoose';
+import { ClientSession, Model, PipelineStage, Types } from 'mongoose';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { SearchTodoDto, SortOrder } from './dto/search-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
@@ -43,6 +43,7 @@ export class TodosService {
       dueDateEnd,
       status,
       priority,
+      dependencyStatus,
       sortBy,
       sortOrder,
       page,
@@ -66,23 +67,119 @@ export class TodosService {
       [sortBy]: sortOrder === SortOrder.ASC ? 1 : -1,
       _id: -1,
     };
+    const pipeline: PipelineStage[] = [
+      { $match: filter },
+      {
+        $lookup: {
+          from: 'tododependencies',
+          let: { todoId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$dependentId', '$$todoId'] },
+                    { $eq: ['$deletedAt', null] },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                prerequisiteId: 1,
+              },
+            },
+          ],
+          as: 'dependencyEdges',
+        },
+      },
+      {
+        $lookup: {
+          from: 'todos',
+          let: { prerequisiteIds: '$dependencyEdges.prerequisiteId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $in: ['$_id', '$$prerequisiteIds'] },
+                    { $eq: ['$deletedAt', null] },
+                    {
+                      $in: [
+                        '$status',
+                        [TodoStatus.NOT_STARTED, TodoStatus.IN_PROGRESS],
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+              },
+            },
+          ],
+          as: 'blockingPrerequisites',
+        },
+      },
+      {
+        $addFields: {
+          dependencyStatus: {
+            $cond: [
+              {
+                $gt: [{ $size: '$blockingPrerequisites' }, 0],
+              },
+              DependencyStatus.BLOCKED,
+              DependencyStatus.UNBLOCKED,
+            ],
+          },
+        },
+      },
+    ];
 
-    const [total, rows] = await Promise.all([
-      this.todoModel.countDocuments(filter).exec(),
-      this.todoModel
-        .find(filter)
-        .sort(sort)
-        .skip(skip)
-        .limit(limit)
-        .lean()
-        .exec(),
-    ]);
+    if (dependencyStatus) {
+      pipeline.push({
+        $match: {
+          dependencyStatus,
+        },
+      });
+    }
+
+    pipeline.push({
+      $facet: {
+        metadata: [{ $count: 'total' }],
+        results: [
+          { $sort: sort },
+          { $skip: skip },
+          { $limit: limit },
+          {
+            $project: {
+              dependencyEdges: 0,
+              blockingPrerequisites: 0,
+            },
+          },
+        ],
+      },
+    });
+
+    type SearchTodoAggregationResult = {
+      metadata: Array<{ total: number }>;
+      results: Array<Todo & { dependencyStatus: DependencyStatus }>;
+    };
+
+    const [aggregationResult] = await this.todoModel
+      .aggregate<SearchTodoAggregationResult>(pipeline)
+      .exec();
+    const total = aggregationResult?.metadata?.[0]?.total ?? 0;
+    const results = aggregationResult?.results ?? [];
 
     return {
       total,
       page,
       limit,
-      results: rows,
+      results,
     };
   }
 
@@ -270,28 +367,6 @@ export class TodosService {
         await this.todoDependencyModel.insertMany(toCreate, { session });
       }
 
-      if (dependentTodo.dependencyStatus === DependencyStatus.UNBLOCKED) {
-        const hasBlockingPrerequisite = prerequisites.some((prerequisite) =>
-          [TodoStatus.NOT_STARTED, TodoStatus.IN_PROGRESS].includes(
-            prerequisite.status,
-          ),
-        );
-
-        if (hasBlockingPrerequisite) {
-          await this.todoModel
-            .updateOne(
-              { _id: dependentId, deletedAt: null },
-              {
-                $set: {
-                  dependencyStatus: DependencyStatus.BLOCKED,
-                },
-              },
-              { session },
-            )
-            .exec();
-        }
-      }
-
       await session.commitTransaction();
       return {
         dependentId,
@@ -305,62 +380,27 @@ export class TodosService {
     }
   }
 
-  async removeDependencies(dependentId: string, prerequisiteIds: string[]) {
-    if (prerequisiteIds.length === 0) {
-      return { dependentId, removed: 0 };
-    }
-
+  async removeDependency(dependentId: string, prerequisiteId: string) {
     const session = await this.todoModel.db.startSession();
     session.startTransaction();
 
     try {
-      const dependentTodo = await this.todoModel
-        .findOne({ _id: dependentId, deletedAt: null })
-        .session(session)
-        .lean()
-        .exec();
-      if (!dependentTodo) {
-        throw new NotFoundException(`Todo with id ${dependentId} not found`);
-      }
-
-      const uniquePrerequisiteIds = [...new Set(prerequisiteIds)];
-      const result = await this.todoDependencyModel
-        .updateMany(
+      const edge = await this.todoDependencyModel
+        .findOneAndUpdate(
           {
             dependentId,
-            prerequisiteId: { $in: uniquePrerequisiteIds },
+            prerequisiteId,
             deletedAt: null,
           },
           {
             $set: { deletedAt: new Date() },
           },
-          { session },
+          { returnDocument: 'after', session },
         )
         .exec();
 
-      if (dependentTodo.dependencyStatus === DependencyStatus.BLOCKED) {
-        const hasBlockingDependencies = await this.hasBlockingDependencies(
-          dependentId,
-          session,
-        );
-
-        if (!hasBlockingDependencies) {
-          await this.todoModel
-            .updateOne(
-              { _id: dependentId, deletedAt: null },
-              {
-                $set: {
-                  dependencyStatus: DependencyStatus.UNBLOCKED,
-                },
-              },
-              { session },
-            )
-            .exec();
-        }
-      }
-
       await session.commitTransaction();
-      return { dependentId, removed: result.modifiedCount };
+      return { removed: Boolean(edge) };
     } catch (error) {
       await session.abortTransaction();
       throw error;
@@ -450,38 +490,6 @@ export class TodosService {
       .exec();
 
     return Boolean(result?.hasCycle);
-  }
-
-  private async hasBlockingDependencies(
-    dependentId: string,
-    session: ClientSession,
-  ): Promise<boolean> {
-    const edges = await this.todoDependencyModel
-      .find({ dependentId, deletedAt: null })
-      .session(session)
-      .lean()
-      .exec();
-
-    const prerequisiteIds = [
-      ...new Set(edges.map((edge) => String(edge.prerequisiteId))),
-    ];
-    if (prerequisiteIds.length === 0) {
-      return false;
-    }
-
-    const blockingPrerequisite = await this.todoModel
-      .findOne({
-        _id: { $in: prerequisiteIds },
-        deletedAt: null,
-        status: {
-          $in: [TodoStatus.NOT_STARTED, TodoStatus.IN_PROGRESS],
-        },
-      })
-      .session(session)
-      .lean()
-      .exec();
-
-    return Boolean(blockingPrerequisite);
   }
 
   private getNextDueDate(baseDate: Date, recurrence: RecurrenceConfig): Date {
