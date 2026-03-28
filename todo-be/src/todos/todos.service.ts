@@ -98,27 +98,16 @@ export class TodosService {
         return null;
       }
 
-      const setPayload = Object.fromEntries(
-        Object.entries(updateTodoDto).filter(([, v]) => v !== undefined),
-      );
-      const unsetPayload: Record<string, 1> = {};
+      const nextStatus = updateTodoDto.status ?? existing.status;
 
-      if (updateTodoDto.recurrence) {
-        setPayload.recurrence = this.normalizeRecurrence(
-          updateTodoDto.recurrence,
-        );
-      } else {
-        delete setPayload.recurrence;
-        unsetPayload.recurrence = 1;
+      if (
+        existing.status !== TodoStatus.IN_PROGRESS &&
+        nextStatus === TodoStatus.IN_PROGRESS
+      ) {
+        await this.ensureDependenciesReadyForInProgress(id, session);
       }
 
-      const updatePayload: Record<string, unknown> = {};
-      if (Object.keys(setPayload).length > 0) {
-        updatePayload.$set = setPayload;
-      }
-      if (Object.keys(unsetPayload).length > 0) {
-        updatePayload.$unset = unsetPayload;
-      }
+      const updatePayload = this.buildUpdatePayload(updateTodoDto, nextStatus);
 
       const updated = await this.todoModel
         .findOneAndUpdate({ _id: id, deletedAt: null }, updatePayload, {
@@ -132,47 +121,12 @@ export class TodosService {
         return null;
       }
 
-      if (
-        existing.status !== TodoStatus.COMPLETED &&
-        updated.status === TodoStatus.COMPLETED &&
-        updated.recurrence
-      ) {
-        const baseDueDate = updated.dueDate
-          ? new Date(updated.dueDate)
-          : new Date();
-        const nextDueDate = this.getNextDueDate(
-          baseDueDate,
-          updated.recurrence,
-        );
-
-        const [nextTodo] = await this.todoModel.create(
-          [
-            this.buildTodoPayload({
-              name: updated.name,
-              description: updated.description,
-              dueDate: nextDueDate,
-              priority: updated.priority,
-              recurrence: updated.recurrence,
-              status: TodoStatus.NOT_STARTED,
-            }),
-          ],
-          { session },
-        );
-
-        const activePrerequisiteEdges = await this.todoDependencyModel
-          .find({ dependentId: updated._id, deletedAt: null })
-          .session(session)
-          .lean()
-          .exec();
-
-        if (activePrerequisiteEdges.length > 0) {
-          const copyEdges = activePrerequisiteEdges.map((edge) => ({
-            prerequisiteId: edge.prerequisiteId,
-            dependentId: nextTodo._id,
-          }));
-          await this.todoDependencyModel.insertMany(copyEdges, { session });
-        }
-      }
+      await this.createNextRecurringTodoIfNeeded(
+        id,
+        existing,
+        updated,
+        session,
+      );
 
       await session.commitTransaction();
       return updated;
@@ -493,5 +447,137 @@ export class TodosService {
         ? this.normalizeRecurrence(todo.recurrence)
         : undefined,
     };
+  }
+
+  private buildUpdatePayload(
+    updateTodoDto: UpdateTodoDto,
+    nextStatus: TodoStatus,
+  ): Record<string, unknown> {
+    const setPayload = Object.fromEntries(
+      Object.entries(updateTodoDto).filter(([, v]) => v !== undefined),
+    );
+    const unsetPayload: Record<string, 1> = {};
+
+    if (nextStatus === TodoStatus.ARCHIVED) {
+      delete setPayload.recurrence;
+      unsetPayload.recurrence = 1;
+    } else if (updateTodoDto.recurrence) {
+      setPayload.recurrence = this.normalizeRecurrence(
+        updateTodoDto.recurrence,
+      );
+    } else {
+      delete setPayload.recurrence;
+      unsetPayload.recurrence = 1;
+    }
+
+    const updatePayload: Record<string, unknown> = {};
+    if (Object.keys(setPayload).length > 0) {
+      updatePayload.$set = setPayload;
+    }
+    if (Object.keys(unsetPayload).length > 0) {
+      updatePayload.$unset = unsetPayload;
+    }
+
+    return updatePayload;
+  }
+
+  private async createNextRecurringTodoIfNeeded(
+    todoId: string,
+    existing: Todo,
+    updated: Todo,
+    session: ClientSession,
+  ): Promise<void> {
+    if (
+      existing.status === TodoStatus.COMPLETED ||
+      updated.status !== TodoStatus.COMPLETED ||
+      !updated.recurrence
+    ) {
+      return;
+    }
+
+    const baseDueDate = updated.dueDate
+      ? new Date(updated.dueDate)
+      : new Date();
+    const nextDueDate = this.getNextDueDate(baseDueDate, updated.recurrence);
+
+    const [nextTodo] = await this.todoModel.create(
+      [
+        this.buildTodoPayload({
+          name: updated.name,
+          description: updated.description,
+          dueDate: nextDueDate,
+          priority: updated.priority,
+          recurrence: updated.recurrence,
+          status: TodoStatus.NOT_STARTED,
+        }),
+      ],
+      { session },
+    );
+
+    const activePrerequisiteEdges = await this.todoDependencyModel
+      .find({ dependentId: todoId, deletedAt: null })
+      .session(session)
+      .lean()
+      .exec();
+
+    if (activePrerequisiteEdges.length === 0) {
+      return;
+    }
+
+    const copyEdges = activePrerequisiteEdges.map((edge) => ({
+      prerequisiteId: edge.prerequisiteId,
+      dependentId: nextTodo._id,
+    }));
+    await this.todoDependencyModel.insertMany(copyEdges, { session });
+  }
+
+  private async ensureDependenciesReadyForInProgress(
+    todoId: string,
+    session: ClientSession,
+  ): Promise<void> {
+    const edges = await this.todoDependencyModel
+      .find({ dependentId: todoId, deletedAt: null })
+      .session(session)
+      .lean()
+      .exec();
+
+    if (edges.length === 0) {
+      return;
+    }
+
+    const prerequisiteIds = [
+      ...new Set(edges.map((edge) => String(edge.prerequisiteId))),
+    ];
+
+    const prerequisites = await this.todoModel
+      .find({
+        _id: { $in: prerequisiteIds },
+        deletedAt: null,
+      })
+      .session(session)
+      .select({ _id: 1, name: 1, status: 1 })
+      .lean()
+      .exec();
+
+    const readyStatuses = new Set([TodoStatus.COMPLETED, TodoStatus.ARCHIVED]);
+    const blockedPrerequisites = prerequisites.filter(
+      (todo) => !readyStatuses.has(todo.status),
+    );
+
+    const foundIds = new Set(prerequisites.map((todo) => String(todo._id)));
+    const missingIds = prerequisiteIds.filter((item) => !foundIds.has(item));
+
+    if (blockedPrerequisites.length === 0 && missingIds.length === 0) {
+      return;
+    }
+
+    const blockedLabels = blockedPrerequisites.map(
+      (todo) => `${todo.name ?? String(todo._id)} (${todo.status})`,
+    );
+    const messages = [...blockedLabels, ...missingIds];
+
+    throw new BadRequestException(
+      `Todo cannot move to IN_PROGRESS until dependencies are COMPLETED or ARCHIVED: ${messages.join(', ')}`,
+    );
   }
 }
