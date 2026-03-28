@@ -1,13 +1,18 @@
-import { Tag, Button, Tooltip, Popconfirm, Divider } from "antd"
+import { Tag, Button, Tooltip, Popconfirm, Divider, Badge } from "antd"
 import type { ColumnsType } from "antd/es/table"
-import { priorityOptions, recurrenceOptions, statusOptions } from "./options"
+import {
+  dependencyStatusOptions,
+  priorityOptions,
+  recurrenceOptions,
+  statusOptions,
+} from "./options"
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   SaveOutlined,
   SyncOutlined,
 } from "@ant-design/icons"
-import { TodoItem, Recurrence } from "../data/types"
+import { TodoItem, Recurrence, DependencyStatus } from "../data/types"
 
 const mapStatus: Record<string, { icon: React.ReactNode; color: string }> = {
   NOT_STARTED: { icon: <ClockCircleOutlined />, color: "default" },
@@ -70,6 +75,31 @@ export const columns = ({
         <Tag color={mapPriority[priority]} variant={"outlined"}>
           {priorityOptions.find(option => option.value === priority)?.label}
         </Tag>
+      )
+    },
+  },
+  {
+    title: "Dependency",
+    dataIndex: "dependencyStatus",
+    key: "dependencyStatus",
+    render: dependencyStatus => {
+      return (
+        <span>
+          <Badge
+            status={
+              dependencyStatus === DependencyStatus.BLOCKED
+                ? "warning"
+                : "processing"
+            }
+          />
+          <span className="ml-2">
+            {
+              dependencyStatusOptions.find(
+                option => option.value === dependencyStatus,
+              )?.label
+            }
+          </span>
+        </span>
       )
     },
   },
