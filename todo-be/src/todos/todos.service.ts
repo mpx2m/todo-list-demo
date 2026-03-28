@@ -100,10 +100,18 @@ export class TodosService {
       }
 
       const nextStatus = updateTodoDto.status ?? existing.status;
+      const nextDueDate =
+        updateTodoDto.dueDate === undefined
+          ? existing.dueDate
+          : updateTodoDto.dueDate;
+      const nextRecurrence =
+        updateTodoDto.recurrence === undefined
+          ? existing.recurrence
+          : updateTodoDto.recurrence;
 
       this.assertDueDateForRecurrence({
-        dueDate: updateTodoDto.dueDate,
-        recurrence: updateTodoDto.recurrence,
+        dueDate: nextDueDate ?? undefined,
+        recurrence: nextRecurrence ?? undefined,
       });
 
       if (
@@ -482,21 +490,35 @@ export class TodosService {
     updateTodoDto: UpdateTodoDto,
   ): Record<string, unknown> {
     const setPayload = Object.fromEntries(
-      Object.entries(updateTodoDto).filter(([, v]) => v !== undefined),
+      Object.entries(updateTodoDto).filter(
+        ([key, value]) =>
+          value !== undefined &&
+          value !== null &&
+          key !== 'dueDate' &&
+          key !== 'recurrence' &&
+          key !== 'description',
+      ),
     );
     const unsetPayload: Record<string, 1> = {};
 
-    if (updateTodoDto.dueDate === undefined) {
-      unsetPayload.dueDate = 1;
+    if (updateTodoDto.description === null) {
+      unsetPayload.description = 1;
+    } else if (updateTodoDto.description !== undefined) {
+      setPayload.description = updateTodoDto.description;
     }
 
-    if (updateTodoDto.recurrence) {
+    if (updateTodoDto.dueDate === null) {
+      unsetPayload.dueDate = 1;
+    } else if (updateTodoDto.dueDate !== undefined) {
+      setPayload.dueDate = updateTodoDto.dueDate;
+    }
+
+    if (updateTodoDto.recurrence === null) {
+      unsetPayload.recurrence = 1;
+    } else if (updateTodoDto.recurrence !== undefined) {
       setPayload.recurrence = this.normalizeRecurrence(
         updateTodoDto.recurrence,
       );
-    } else {
-      delete setPayload.recurrence;
-      unsetPayload.recurrence = 1;
     }
 
     const updatePayload: Record<string, unknown> = {};

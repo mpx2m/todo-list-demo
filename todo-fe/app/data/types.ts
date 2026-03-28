@@ -56,7 +56,13 @@ export type Create = Omit<
   recurrence?: RecurrenceConfig
 }
 
-export type Update = Partial<Create>
+export type Update = Partial<
+  Omit<Create, "description" | "dueDate" | "recurrence">
+> & {
+  description?: string | null
+  dueDate?: string | null
+  recurrence?: RecurrenceConfig | null
+}
 
 export interface SearchFormValue {
   name?: string

@@ -44,8 +44,6 @@ export function TodoModal({
   const [messageApi, contextHolder] = message.useMessage()
   const [todoForm] = Form.useForm<CreateFormValue>()
 
-  const watchedStatus = Form.useWatch("status", todoForm)
-
   useEffect(() => {
     if (!open) {
       return
@@ -63,17 +61,6 @@ export function TodoModal({
       todoForm.resetFields()
     }
   }, [open, editingTodo, todoForm])
-
-  useEffect(() => {
-    if (watchedStatus !== "ARCHIVED") {
-      return
-    }
-
-    todoForm.setFieldsValue({
-      recurrence: undefined,
-      customInterval: undefined,
-    })
-  }, [watchedStatus, todoForm])
 
   const createTodoMutation = useMutation({
     mutationFn: todoApi.createTodo,
@@ -115,24 +102,31 @@ export function TodoModal({
             type: values.recurrence,
           }
 
-    const basePayload = {
+    if (editingTodo) {
+      const updatePayload: Update = {
+        name: values.name,
+        description: values.description?.trim() ? values.description : null,
+        priority: values.priority,
+        status: values.status,
+        dueDate: values.dueDate ? values.dueDate.toISOString() : null,
+        recurrence: recurrence ?? null,
+      }
+
+      updateTodoMutation.mutate({
+        id: editingTodo._id,
+        data: updatePayload,
+      })
+      return
+    }
+
+    createTodoMutation.mutate({
       name: values.name,
       description: values.description,
       priority: values.priority,
       status: values.status,
       dueDate: values.dueDate?.toISOString(),
       recurrence,
-    }
-
-    if (editingTodo) {
-      updateTodoMutation.mutate({
-        id: editingTodo._id,
-        data: basePayload,
-      })
-      return
-    }
-
-    createTodoMutation.mutate(basePayload)
+    })
   }
 
   return (
@@ -205,7 +199,6 @@ export function TodoModal({
           <Form.Item label="Recurrence" name="recurrence">
             <Select
               allowClear
-              disabled={watchedStatus === "ARCHIVED"}
               placeholder="No recurrence"
               options={recurrenceOptions}
             />
@@ -230,7 +223,6 @@ export function TodoModal({
                     ]}
                   >
                     <InputNumber
-                      disabled={watchedStatus === "ARCHIVED"}
                       min={1}
                       max={999}
                       style={{ width: "100%" }}
@@ -239,7 +231,6 @@ export function TodoModal({
                   </Form.Item>
                   <Form.Item label="Unit" name="customUnit">
                     <Radio.Group
-                      disabled={watchedStatus === "ARCHIVED"}
                       optionType="button"
                       options={recurrenceUnitOptions}
                     />
