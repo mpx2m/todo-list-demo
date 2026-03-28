@@ -305,27 +305,62 @@ export class TodosService {
     }
   }
 
-  async removeDependency(dependentId: string, prerequisiteId: string) {
+  async removeDependencies(dependentId: string, prerequisiteIds: string[]) {
+    if (prerequisiteIds.length === 0) {
+      return { dependentId, removed: 0 };
+    }
+
     const session = await this.todoModel.db.startSession();
     session.startTransaction();
 
     try {
-      const edge = await this.todoDependencyModel
-        .findOneAndUpdate(
+      const dependentTodo = await this.todoModel
+        .findOne({ _id: dependentId, deletedAt: null })
+        .session(session)
+        .lean()
+        .exec();
+      if (!dependentTodo) {
+        throw new NotFoundException(`Todo with id ${dependentId} not found`);
+      }
+
+      const uniquePrerequisiteIds = [...new Set(prerequisiteIds)];
+      const result = await this.todoDependencyModel
+        .updateMany(
           {
             dependentId,
-            prerequisiteId,
+            prerequisiteId: { $in: uniquePrerequisiteIds },
             deletedAt: null,
           },
           {
             $set: { deletedAt: new Date() },
           },
-          { returnDocument: 'after', session },
+          { session },
         )
         .exec();
 
+      if (dependentTodo.dependencyStatus === DependencyStatus.BLOCKED) {
+        const hasBlockingDependencies = await this.hasBlockingDependencies(
+          dependentId,
+          session,
+        );
+
+        if (!hasBlockingDependencies) {
+          await this.todoModel
+            .updateOne(
+              { _id: dependentId, deletedAt: null },
+              {
+                $set: {
+                  dependencyStatus: DependencyStatus.UNBLOCKED,
+                },
+              },
+              { session },
+            )
+            .exec();
+        }
+      }
+
       await session.commitTransaction();
-      return { removed: Boolean(edge) };
+      return { dependentId, removed: result.modifiedCount };
     } catch (error) {
       await session.abortTransaction();
       throw error;
@@ -415,6 +450,38 @@ export class TodosService {
       .exec();
 
     return Boolean(result?.hasCycle);
+  }
+
+  private async hasBlockingDependencies(
+    dependentId: string,
+    session: ClientSession,
+  ): Promise<boolean> {
+    const edges = await this.todoDependencyModel
+      .find({ dependentId, deletedAt: null })
+      .session(session)
+      .lean()
+      .exec();
+
+    const prerequisiteIds = [
+      ...new Set(edges.map((edge) => String(edge.prerequisiteId))),
+    ];
+    if (prerequisiteIds.length === 0) {
+      return false;
+    }
+
+    const blockingPrerequisite = await this.todoModel
+      .findOne({
+        _id: { $in: prerequisiteIds },
+        deletedAt: null,
+        status: {
+          $in: [TodoStatus.NOT_STARTED, TodoStatus.IN_PROGRESS],
+        },
+      })
+      .session(session)
+      .lean()
+      .exec();
+
+    return Boolean(blockingPrerequisite);
   }
 
   private getNextDueDate(baseDate: Date, recurrence: RecurrenceConfig): Date {

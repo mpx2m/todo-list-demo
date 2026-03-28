@@ -38,12 +38,12 @@ export class TodosController {
     return this.todoService.addDependencies(id, body.prerequisiteIds ?? []);
   }
 
-  @Delete(':id/dependencies/:prerequisiteId')
-  removeDependency(
+  @Delete(':id/dependencies')
+  removeDependencies(
     @Param('id', MongoIdPipe) id: string,
-    @Param('prerequisiteId', MongoIdPipe) prerequisiteId: string,
+    @Body() body: AddDependenciesDto,
   ) {
-    return this.todoService.removeDependency(id, prerequisiteId);
+    return this.todoService.removeDependencies(id, body.prerequisiteIds ?? []);
   }
 
   @Get(':id/dependencies')
