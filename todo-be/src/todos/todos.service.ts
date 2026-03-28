@@ -4,14 +4,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Model, PipelineStage, Types } from 'mongoose';
+import { ClientSession, Model, Types } from 'mongoose';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { SearchTodoDto, SortOrder } from './dto/search-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
 import { Todo } from './schemas/todo.schema';
 import { TodoDependency } from './schemas/todo-dependency.schema';
 import {
-  DependencyStatus,
   Recurrence,
   RecurrenceConfig,
   RecurrenceUnit,
@@ -43,7 +42,6 @@ export class TodosService {
       dueDateEnd,
       status,
       priority,
-      dependencyStatus,
       sortBy,
       sortOrder,
       page,
@@ -67,119 +65,23 @@ export class TodosService {
       [sortBy]: sortOrder === SortOrder.ASC ? 1 : -1,
       _id: -1,
     };
-    const pipeline: PipelineStage[] = [
-      { $match: filter },
-      {
-        $lookup: {
-          from: 'tododependencies',
-          let: { todoId: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ['$dependentId', '$$todoId'] },
-                    { $eq: ['$deletedAt', null] },
-                  ],
-                },
-              },
-            },
-            {
-              $project: {
-                _id: 0,
-                prerequisiteId: 1,
-              },
-            },
-          ],
-          as: 'dependencyEdges',
-        },
-      },
-      {
-        $lookup: {
-          from: 'todos',
-          let: { prerequisiteIds: '$dependencyEdges.prerequisiteId' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $in: ['$_id', '$$prerequisiteIds'] },
-                    { $eq: ['$deletedAt', null] },
-                    {
-                      $in: [
-                        '$status',
-                        [TodoStatus.NOT_STARTED, TodoStatus.IN_PROGRESS],
-                      ],
-                    },
-                  ],
-                },
-              },
-            },
-            {
-              $project: {
-                _id: 1,
-              },
-            },
-          ],
-          as: 'blockingPrerequisites',
-        },
-      },
-      {
-        $addFields: {
-          dependencyStatus: {
-            $cond: [
-              {
-                $gt: [{ $size: '$blockingPrerequisites' }, 0],
-              },
-              DependencyStatus.BLOCKED,
-              DependencyStatus.UNBLOCKED,
-            ],
-          },
-        },
-      },
-    ];
 
-    if (dependencyStatus) {
-      pipeline.push({
-        $match: {
-          dependencyStatus,
-        },
-      });
-    }
-
-    pipeline.push({
-      $facet: {
-        metadata: [{ $count: 'total' }],
-        results: [
-          { $sort: sort },
-          { $skip: skip },
-          { $limit: limit },
-          {
-            $project: {
-              dependencyEdges: 0,
-              blockingPrerequisites: 0,
-            },
-          },
-        ],
-      },
-    });
-
-    type SearchTodoAggregationResult = {
-      metadata: Array<{ total: number }>;
-      results: Array<Todo & { dependencyStatus: DependencyStatus }>;
-    };
-
-    const [aggregationResult] = await this.todoModel
-      .aggregate<SearchTodoAggregationResult>(pipeline)
-      .exec();
-    const total = aggregationResult?.metadata?.[0]?.total ?? 0;
-    const results = aggregationResult?.results ?? [];
+    const [total, rows] = await Promise.all([
+      this.todoModel.countDocuments(filter).exec(),
+      this.todoModel
+        .find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+    ]);
 
     return {
       total,
       page,
       limit,
-      results,
+      results: rows,
     };
   }
 
