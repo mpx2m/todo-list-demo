@@ -34,7 +34,7 @@ export default function Home() {
 
   const params = buildSearchParams(searchFormValue)
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ["todos", JSON.stringify(params)],
     queryFn: () => todoApi.search(params),
   })
@@ -98,7 +98,7 @@ export default function Home() {
       <Table
         size="small"
         bordered
-        loading={isLoading}
+        loading={isLoading || isFetching}
         dataSource={(data?.data?.results || []) as TodoItem[]}
         rowKey={(record: TodoItem) => record._id}
         columns={columns({
