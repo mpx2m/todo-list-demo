@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Model } from 'mongoose';
+import { ClientSession, Model, Types } from 'mongoose';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { SearchTodoDto, SortOrder } from './dto/search-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
@@ -340,35 +340,44 @@ export class TodosService {
       return true;
     }
 
-    const visited = new Set<string>([dependentId]);
-    let frontier: string[] = [dependentId];
+    const dependentObjectId = new Types.ObjectId(dependentId);
+    const prerequisiteObjectId = new Types.ObjectId(prerequisiteId);
 
-    while (frontier.length > 0) {
-      const edges = await this.todoDependencyModel
-        .find({
-          prerequisiteId: { $in: frontier },
-          deletedAt: null,
-        })
-        .session(session)
-        .select({ dependentId: 1 })
-        .lean()
-        .exec();
+    const [result] = await this.todoModel
+      .aggregate<{ hasCycle: boolean }>([
+        {
+          $match: {
+            _id: dependentObjectId,
+            deletedAt: null,
+          },
+        },
+        {
+          $graphLookup: {
+            from: this.todoDependencyModel.collection.name,
+            startWith: '$_id',
+            connectFromField: 'dependentId',
+            connectToField: 'prerequisiteId',
+            as: 'reachableDependencyEdges',
+            restrictSearchWithMatch: {
+              deletedAt: null,
+            },
+          },
+        },
+        {
+          $project: {
+            hasCycle: {
+              $in: [
+                prerequisiteObjectId,
+                '$reachableDependencyEdges.dependentId',
+              ],
+            },
+          },
+        },
+      ])
+      .session(session)
+      .exec();
 
-      const nextFrontier: string[] = [];
-      for (const edge of edges) {
-        const nextId = String(edge.dependentId);
-        if (nextId === prerequisiteId) {
-          return true;
-        }
-        if (!visited.has(nextId)) {
-          visited.add(nextId);
-          nextFrontier.push(nextId);
-        }
-      }
-      frontier = nextFrontier;
-    }
-
-    return false;
+    return Boolean(result?.hasCycle);
   }
 
   private getNextDueDate(baseDate: Date, recurrence: RecurrenceConfig): Date {
