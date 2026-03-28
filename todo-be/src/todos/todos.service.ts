@@ -334,17 +334,22 @@ export class TodosService {
         );
       }
 
-      for (const prerequisiteId of uniquePrerequisiteIds) {
-        const hasCycle = await this.wouldCreateCycle(
-          prerequisiteId,
-          dependentId,
-          session,
+      const cyclePrerequisiteIds = await this.findCyclePrerequisiteIds(
+        uniquePrerequisiteIds,
+        dependentId,
+        session,
+      );
+
+      if (cyclePrerequisiteIds.length > 0) {
+        const prerequisiteNameMap = new Map(
+          prerequisites.map((item) => [String(item._id), item.name]),
         );
-        if (hasCycle) {
-          throw new BadRequestException(
-            `Adding edge ${prerequisiteId} -> ${dependentId} introduces a cycle`,
-          );
-        }
+        const cycleLabels = cyclePrerequisiteIds.map(
+          (id) => prerequisiteNameMap.get(id) ?? id,
+        );
+        throw new BadRequestException(
+          `Adding edge(s) ${cycleLabels.join(', ')} -> ${dependentTodo.name ?? dependentId} introduces a cycle`,
+        );
       }
 
       const existingEdges = await this.todoDependencyModel
@@ -480,20 +485,19 @@ export class TodosService {
       .exec();
   }
 
-  private async wouldCreateCycle(
-    prerequisiteId: string,
+  private async findCyclePrerequisiteIds(
+    prerequisiteIds: string[],
     dependentId: string,
     session: ClientSession,
-  ): Promise<boolean> {
-    if (prerequisiteId === dependentId) {
-      return true;
+  ): Promise<string[]> {
+    if (prerequisiteIds.length === 0) {
+      return [];
     }
 
     const dependentObjectId = new Types.ObjectId(dependentId);
-    const prerequisiteObjectId = new Types.ObjectId(prerequisiteId);
 
     const [result] = await this.todoModel
-      .aggregate<{ hasCycle: boolean }>([
+      .aggregate<{ reachableDependentIds: Types.ObjectId[] }>([
         {
           $match: {
             _id: dependentObjectId,
@@ -514,19 +518,22 @@ export class TodosService {
         },
         {
           $project: {
-            hasCycle: {
-              $in: [
-                prerequisiteObjectId,
-                '$reachableDependencyEdges.dependentId',
-              ],
-            },
+            reachableDependentIds: '$reachableDependencyEdges.dependentId',
           },
         },
       ])
       .session(session)
       .exec();
 
-    return Boolean(result?.hasCycle);
+    const reachableDependentIdSet = new Set(
+      (result?.reachableDependentIds ?? []).map((id) => String(id)),
+    );
+
+    return prerequisiteIds.filter(
+      (prerequisiteId) =>
+        prerequisiteId === dependentId ||
+        reachableDependentIdSet.has(prerequisiteId),
+    );
   }
 
   private getNextDueDate(baseDate: Date, recurrence: RecurrenceConfig): Date {
