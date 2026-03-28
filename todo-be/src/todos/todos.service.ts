@@ -236,6 +236,7 @@ export class TodosService {
       const now = new Date();
       const todoId = String(todo._id);
       const subtreePath = todo.path ? `${todo.path}:${todoId}` : todoId;
+      const ancestorIds = todo.path?.split(':').filter(Boolean) ?? [];
 
       await this.todoModel
         .updateMany(
@@ -250,6 +251,103 @@ export class TodosService {
           { session },
         )
         .exec();
+
+      const ancestors =
+        ancestorIds.length === 0
+          ? []
+          : await this.todoModel
+              .find({
+                _id: { $in: ancestorIds },
+                deletedAt: null,
+              })
+              .session(session)
+              .lean()
+              .exec();
+      const ancestorMap = new Map(
+        ancestors.map((ancestor) => [String(ancestor._id), ancestor]),
+      );
+
+      const firstAncestorId =
+        ancestorIds.length > 0
+          ? ancestorIds[ancestorIds.length - 1]
+          : undefined;
+      const firstAncestor = firstAncestorId
+        ? ancestorMap.get(firstAncestorId)
+        : undefined;
+
+      // Only when the first ancestor is BLOCKED, recompute all ancestors.
+      if (
+        firstAncestor &&
+        firstAncestor.dependencyStatus === DependencyStatus.BLOCKED
+      ) {
+        const ancestorsToBlocked: string[] = [];
+        const ancestorsToUnblocked: string[] = [];
+
+        // Re-evaluate dependency status for all ancestors of the removed subtree.
+        for (const ancestorId of ancestorIds) {
+          const ancestor = ancestorMap.get(ancestorId);
+
+          if (!ancestor) {
+            continue;
+          }
+
+          const ancestorPath = ancestor.path
+            ? `${ancestor.path}:${ancestorId}`
+            : ancestorId;
+
+          const remainingDescendants = await this.todoModel
+            .find({
+              deletedAt: null,
+              path: { $regex: `^${ancestorPath}(:|$)` },
+            })
+            .session(session)
+            .lean()
+            .exec();
+
+          const hasPendingOrInProgressDescendant = remainingDescendants.some(
+            (node) =>
+              node.status === TodoStatus.NOT_STARTED ||
+              node.status === TodoStatus.IN_PROGRESS,
+          );
+          const nextDependencyStatus = hasPendingOrInProgressDescendant
+            ? DependencyStatus.BLOCKED
+            : DependencyStatus.UNBLOCKED;
+
+          if (nextDependencyStatus !== ancestor.dependencyStatus) {
+            if (nextDependencyStatus === DependencyStatus.BLOCKED) {
+              ancestorsToBlocked.push(ancestorId);
+            } else {
+              ancestorsToUnblocked.push(ancestorId);
+            }
+          }
+        }
+
+        if (ancestorsToBlocked.length > 0) {
+          await this.todoModel
+            .updateMany(
+              {
+                _id: { $in: ancestorsToBlocked },
+                deletedAt: null,
+              },
+              { $set: { dependencyStatus: DependencyStatus.BLOCKED } },
+              { session },
+            )
+            .exec();
+        }
+
+        if (ancestorsToUnblocked.length > 0) {
+          await this.todoModel
+            .updateMany(
+              {
+                _id: { $in: ancestorsToUnblocked },
+                deletedAt: null,
+              },
+              { $set: { dependencyStatus: DependencyStatus.UNBLOCKED } },
+              { session },
+            )
+            .exec();
+        }
+      }
 
       await session.commitTransaction();
       return todo;
